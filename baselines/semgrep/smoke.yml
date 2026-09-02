@@ -1,0 +1,6 @@
+rules:
+  - id: agentsecbench-smoke-python-subprocess
+    languages: [python]
+    message: Local Semgrep installation smoke test for subprocess.run.
+    severity: INFO
+    pattern: subprocess.run(...)

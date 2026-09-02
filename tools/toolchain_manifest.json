@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1.0.0",
+  "installed_for": "AgentSecBench baseline experiments",
+  "codeql": {
+    "version": "2.26.2",
+    "source": "https://github.com/github/codeql-action/releases/tag/codeql-bundle-v2.26.2",
+    "archive": "tools/_downloads/codeql-bundle-win64-v2.26.2.tar.zst",
+    "archive_sha256": "e3c7119861293f01646c68159b51ce2e7dd60d6a632817b1689d1f6c2464fe62",
+    "executable": "tools/codeql-v2.26.2/codeql/codeql.exe",
+    "python_launcher": "D:/Scoop/scoop/apps/python/current/py.exe",
+    "python_launcher_note": "Scoop Python 3.14.3 was registered for the current user with its bundled PEP 514 registration file because the launcher previously selected a removed Microsoft Store Python 3.11 entry. CodeQL database creation must run outside the managed registry sandbox.",
+    "query_packs": {
+      "codeql/python-all": "7.2.2",
+      "codeql/python-queries": "1.8.7",
+      "codeql/javascript-all": "2.8.2",
+      "codeql/javascript-queries": "2.4.2"
+    }
+  },
+  "semgrep": {
+    "version": "1.171.0",
+    "source": "PyPI official semgrep package",
+    "environment": ".venv",
+    "executable": ".venv/Scripts/semgrep.exe",
+    "version_check_flags": ["--metrics", "off", "--disable-version-check"],
+    "note": "1.172.0 was installed first but its Windows core failed to initialize the system X509 store in the managed execution environment; 1.171.0 is pinned and verified outside the sandbox."
+  }
+}

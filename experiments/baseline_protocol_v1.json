@@ -1,0 +1,21 @@
+{
+  "protocol_version": "1.0.0",
+  "status": "development_only",
+  "development_repositories": ["mantrakp04/manusmcp", "SWE-agent/mini-swe-agent"],
+  "held_out_repositories": ["dddabtc/winremote-mcp", "nexu-io/html-anything", "microsoft/magentic-ui"],
+  "semgrep": {
+    "version": "1.171.0",
+    "rules": "baselines/semgrep/predefined_sinks_v1.yml",
+    "method_id": "semgrep_predefined_sinks_v1",
+    "semantics": "API-presence baseline; no agent relevance, trust-boundary or custom Security-ADG reasoning"
+  },
+  "codeql": {
+    "version": "2.26.2",
+    "python_suite": "codeql/python-queries:codeql-suites/python-security-and-quality.qls",
+    "javascript_suite": "codeql/javascript-queries:codeql-suites/javascript-security-and-quality.qls",
+    "method_id": "codeql_security_and_quality_v1"
+  },
+  "label_inputs_used": false,
+  "held_out_used": false,
+  "policy": "Rules and normalization may be debugged only on development repositories. Freeze before held-out execution."
+}

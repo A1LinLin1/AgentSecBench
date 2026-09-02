@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.local/schema/model-annotation-v1.json",
+  "title": "AgentSecBench model annotation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "candidate_id",
+    "behavior_confirmed",
+    "agent_relevant",
+    "source_type",
+    "source_external",
+    "dependency_confirmed",
+    "trust_boundary_crossed",
+    "effect_type",
+    "effect_target",
+    "guard_present",
+    "guard_types",
+    "guard_effective",
+    "weakness_present",
+    "vulnerability_status",
+    "label_confidence",
+    "evidence_line_numbers",
+    "missing_context",
+    "rationale"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "pattern": "^AT-[0-9]{4}$"},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "behavior_confirmed": {"description": "Whether the candidate operation is real and operative.", "enum": ["true", "false", "uncertain"]},
+    "agent_relevant": {"description": "Whether the operation implements an agent capability or lies on an agent-controlled path.", "enum": ["true", "false", "uncertain"]},
+    "source_type": {
+      "description": "Origin of a value influencing the relevant effect; do not use a merely co-located input.",
+      "enum": ["user_prompt", "web_content", "file_content", "tool_output", "message_email", "database", "environment_config", "internal_constant", "unknown", "none"]
+    },
+    "source_external": {"description": "Whether the identified source is external or less trusted; config provenance may be unknown.", "enum": ["true", "false", "unknown"]},
+    "dependency_confirmed": {"description": "Evidence strength for an external or less-trusted data/control path to the effect.", "enum": ["true", "false", "partial", "unknown"]},
+    "trust_boundary_crossed": {"description": "Whether a proven less-trusted source or principal reaches a privileged component or external side effect.", "enum": ["true", "false", "unknown"]},
+    "effect_type": {
+      "description": "Primary candidate operation; process-spawn APIs are command_execution even if they invoke an external tool.",
+      "enum": ["command_execution", "dynamic_code_execution", "filesystem_read", "filesystem_write", "filesystem_delete", "browser_control", "network_access", "credential_access", "database_access", "external_tool_invocation", "other", "none"]
+    },
+    "effect_target": {"type": "string", "maxLength": 300},
+    "guard_present": {"description": "Whether a security mechanism constrains the relevant path; timeouts and exception handling are not guards.", "enum": ["true", "false", "unknown"]},
+    "guard_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["allowlist", "schema_validation", "canonicalization", "authorization", "user_confirmation", "sandbox", "escaping", "least_privilege", "destination_restriction", "secret_redaction", "other"]
+      }
+    },
+    "guard_effective": {"description": "Effectiveness for the relevant candidate path; use not_applicable when no guard is present.", "enum": ["yes", "no", "partial", "unknown", "not_applicable"]},
+    "weakness_present": {"description": "Whether supplied evidence supports a security-relevant deficiency.", "enum": ["true", "false", "uncertain"]},
+    "vulnerability_status": {"description": "Use not_assessed for material missing context and candidate only for an evidence-backed partial exploit path.", "enum": ["not_assessed", "candidate", "confirmed", "rejected"]},
+    "label_confidence": {"enum": ["high", "medium", "low"]},
+    "evidence_line_numbers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "missing_context": {"type": "string", "maxLength": 500},
+    "rationale": {"type": "string", "minLength": 1, "maxLength": 1000}
+  }
+}

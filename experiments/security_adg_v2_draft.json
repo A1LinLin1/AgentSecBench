@@ -1,0 +1,18 @@
+{
+  "protocol_version": "2.0.0-draft",
+  "status": "development_only_before_human_gold",
+  "parent_protocol": "experiments/security_adg_v1.json",
+  "generator": "security_adg_def_use_v2",
+  "schema": "graphs/security_adg/schema_v2_draft.json",
+  "development_repositories": ["mantrakp04/manusmcp", "SWE-agent/mini-swe-agent"],
+  "held_out_repositories": ["dddabtc/winremote-mcp", "nexu-io/html-anything", "microsoft/magentic-ui"],
+  "engines": {
+    "Python": "AST-based local backward def-use with structural dominating-if detection",
+    "TypeScript_JavaScript": "function-local lexical backward slice; dominance and aliasing are not claimed"
+  },
+  "inference_status": "candidate_until_human_adjudication",
+  "label_inputs_used": false,
+  "held_out_used": false,
+  "freeze_condition": "No further rule changes after inspecting held-out labels.",
+  "evaluation_condition": "Report weighted precision, recall and F1 only after blind human adjudication. Candidate coverage is not accuracy."
+}

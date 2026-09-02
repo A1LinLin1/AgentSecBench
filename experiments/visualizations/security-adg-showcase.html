@@ -1,0 +1,88 @@
+<section id="security-adg-showcase" aria-labelledby="sadg-title">
+  <style>
+    #security-adg-showcase { color: var(--foreground); font: inherit; }
+    #security-adg-showcase .sadg-head { display:flex; justify-content:space-between; gap:1rem; align-items:end; flex-wrap:wrap; margin-bottom:.75rem; }
+    #security-adg-showcase h2 { margin:0; }
+    #security-adg-showcase .sadg-controls { display:flex; gap:.4rem; flex-wrap:wrap; }
+    #security-adg-showcase .sadg-controls button[aria-pressed="true"] { background:var(--primary); color:var(--primary-foreground); }
+    #security-adg-showcase .sadg-meta { margin:.2rem 0 1rem; color:var(--muted-foreground); }
+    #security-adg-showcase svg { width:100%; height:auto; display:block; overflow:visible; }
+    #security-adg-showcase .sadg-node rect { stroke:var(--border); stroke-width:1.25; rx:10; }
+    #security-adg-showcase .sadg-node text { fill:var(--foreground); font-size:14px; font-weight:500; text-anchor:middle; dominant-baseline:middle; }
+    #security-adg-showcase .sadg-node .sadg-sub { fill:var(--muted-foreground); font-size:11px; font-weight:400; }
+    #security-adg-showcase .sadg-source rect { fill:color-mix(in srgb, var(--purple) 14%, transparent); }
+    #security-adg-showcase .sadg-agent rect { fill:color-mix(in srgb, var(--blue) 14%, transparent); }
+    #security-adg-showcase .sadg-boundary polygon { fill:color-mix(in srgb, var(--orange) 16%, transparent); stroke:var(--border); stroke-width:1.25; }
+    #security-adg-showcase .sadg-operation rect { fill:color-mix(in srgb, var(--red) 15%, transparent); }
+    #security-adg-showcase .sadg-effect rect { fill:color-mix(in srgb, var(--green) 15%, transparent); }
+    #security-adg-showcase .sadg-edge { fill:none; stroke:var(--muted-foreground); stroke-width:1.5; marker-end:url(#sadg-arrow); }
+    #security-adg-showcase .sadg-edge-data { stroke:var(--purple); stroke-width:2; stroke-dasharray:5 4; marker-end:url(#sadg-arrow-data); }
+    #security-adg-showcase .sadg-edge-boundary { stroke:var(--orange); stroke-width:2; marker-end:url(#sadg-arrow-boundary); }
+    #security-adg-showcase .sadg-label { fill:var(--muted-foreground); font-size:11px; text-anchor:middle; }
+    #security-adg-showcase .sadg-legend { display:flex; gap:1rem; flex-wrap:wrap; margin:.4rem 0 .65rem; color:var(--muted-foreground); }
+    #security-adg-showcase .sadg-key { display:inline-flex; align-items:center; gap:.35rem; }
+    #security-adg-showcase .sadg-key i { width:.75rem; height:.75rem; display:inline-block; border-radius:50%; background:var(--purple); }
+    #security-adg-showcase .sadg-key i.boundary { background:var(--orange); transform:rotate(45deg); border-radius:1px; }
+    #security-adg-showcase .sadg-detail { margin:0; color:var(--muted-foreground); }
+    @media (max-width:520px) { #security-adg-showcase .sadg-head { align-items:start; } #security-adg-showcase .sadg-controls { width:100%; } #security-adg-showcase .sadg-controls button { flex:1; } }
+  </style>
+  <div class="sadg-head">
+    <div>
+      <h2 id="sadg-title">Security-ADG: from sink to security behavior</h2>
+      <p class="sadg-meta">Real MCP tool · <code>dddabtc/winremote-mcp</code> · pinned commit <code>2185ee6</code></p>
+    </div>
+    <div class="sadg-controls" aria-label="Graph view">
+      <button class="btn" type="button" data-view="sink" aria-pressed="false">Sink only</button>
+      <button class="btn" type="button" data-view="adg" aria-pressed="false">Plain ADG</button>
+      <button class="btn" type="button" data-view="security" aria-pressed="true">Security-ADG</button>
+    </div>
+  </div>
+  <div class="sadg-legend" aria-label="Legend">
+    <span class="sadg-key"><i></i> local def-use candidate</span>
+    <span class="sadg-key"><i class="boundary"></i> trust boundary</span>
+    <span>all highlighted links are static candidates, not vulnerability claims</span>
+  </div>
+  <svg id="sadg-svg" viewBox="0 0 980 390" role="img" aria-label="Interactive graph of the WinRemote Shell tool leading from command parameters through a trust boundary to PowerShell execution."></svg>
+  <p id="sadg-detail" class="sadg-detail" aria-live="polite"></p>
+  <script>
+    (() => {
+      const root = document.getElementById('security-adg-showcase');
+      const svg = document.getElementById('sadg-svg');
+      const detail = document.getElementById('sadg-detail');
+      const nodes = {
+        agent: { x: 490, y: 45, w: 190, h: 54, cls: 'sadg-agent', title: 'MCP tool: Shell', sub: 'agent/tool boundary' },
+        command: { x: 110, y: 145, w: 166, h: 54, cls: 'sadg-source', title: 'command', sub: 'tool parameter' },
+        cwd: { x: 110, y: 235, w: 166, h: 54, cls: 'sadg-source', title: 'cwd', sub: 'tool parameter' },
+        timeout: { x: 110, y: 325, w: 166, h: 54, cls: 'sadg-source', title: 'timeout', sub: 'tool parameter' },
+        operation: { x: 660, y: 205, w: 190, h: 62, cls: 'sadg-operation', title: 'subprocess.run', sub: 'PowerShell execution' },
+        effect: { x: 895, y: 205, w: 145, h: 62, cls: 'sadg-effect', title: 'process / shell', sub: 'external effect' }
+      };
+      const esc = (value) => value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+      const node = (id) => { const n = nodes[id]; return `<g class="sadg-node ${n.cls}" transform="translate(${n.x-n.w/2} ${n.y-n.h/2})"><rect width="${n.w}" height="${n.h}"></rect><text x="${n.w/2}" y="${n.h/2-8}">${esc(n.title)}</text><text class="sadg-sub" x="${n.w/2}" y="${n.h/2+13}">${esc(n.sub)}</text></g>`; };
+      const edge = (x1,y1,x2,y2,cls,label='') => `<path class="${cls}" d="M ${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}"></path>${label ? `<text class="sadg-label" x="${(x1+x2)/2}" y="${(y1+y2)/2-7}">${label}</text>` : ''}`;
+      const defs = `<defs><marker id="sadg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="var(--muted-foreground)"></path></marker><marker id="sadg-arrow-data" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="var(--purple)"></path></marker><marker id="sadg-arrow-boundary" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="var(--orange)"></path></marker></defs>`;
+      function render(view) {
+        let marks = defs;
+        if (view === 'sink') {
+          marks += node('operation');
+          detail.textContent = 'Sink-only view: a process-execution call is visible, but no caller, input, boundary, or external effect is represented.';
+        } else if (view === 'adg') {
+          marks += edge(490,72,660,172,'sadg-edge','contains') + edge(755,205,823,205,'sadg-edge','may cause') + node('agent') + node('operation') + node('effect');
+          detail.textContent = 'Plain ADG: connects the tool to a sensitive operation and external effect, but cannot state which inputs reach it.';
+        } else {
+          marks += `<g class="sadg-boundary"><polygon points="420,175 465,220 420,265 375,220"></polygon><text x="420" y="216" text-anchor="middle" fill="var(--foreground)" font-size="13">trust</text><text x="420" y="234" text-anchor="middle" fill="var(--muted-foreground)" font-size="11">boundary</text></g>`;
+          marks += edge(490,72,660,174,'sadg-edge','contains') + edge(755,205,823,205,'sadg-edge','may cause');
+          [['command',145],['cwd',235],['timeout',325]].forEach(([id,y], index) => { marks += edge(193,y,375,220,'sadg-edge-data','def-use'); marks += edge(465,220,565,185 + index * 20,'sadg-edge-boundary', index === 1 ? 'crosses' : ''); });
+          marks += node('agent') + node('command') + node('cwd') + node('timeout') + node('operation') + node('effect');
+          detail.textContent = 'Security-ADG: three MCP tool parameters have local def-use paths to subprocess.run, crossing the inferred trust boundary before PowerShell execution.';
+        }
+        svg.innerHTML = marks;
+      }
+      root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
+        root.querySelectorAll('[data-view]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        render(button.dataset.view);
+      }));
+      render('security');
+    })();
+  </script>
+</section>

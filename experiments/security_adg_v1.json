@@ -1,0 +1,26 @@
+{
+  "protocol_version": "1.0.0",
+  "status": "frozen_before_human_gold",
+  "development_repositories": ["mantrakp04/manusmcp", "SWE-agent/mini-swe-agent"],
+  "held_out_repositories": ["dddabtc/winremote-mcp", "nexu-io/html-anything", "microsoft/magentic-ui"],
+  "tuning_policy": "Only development repositories may inform rule or parameter changes.",
+  "ground_truth_policy": "Blind independent human labels plus adjudication; model-assisted audit is excluded from ground truth.",
+  "representations": ["sink_only", "plain_adg", "security_adg"],
+  "primary_tasks": ["behavior_confirmed", "dependency_confirmed", "trust_boundary_crossed"],
+  "primary_metrics": ["precision", "recall", "f1"],
+  "prediction_schema": "analysis/method_predictions.schema.json",
+  "evaluation_script": "scripts/evaluate_weighted_predictions.py",
+  "sampling_adjustment": "Horvitz-Thompson/sample-weighted estimates for the stratified 150-task sample.",
+  "agreement": {
+    "nominal": "Fleiss_kappa",
+    "pairwise": "Cohen_kappa",
+    "missing_policy": "report complete-case counts per field"
+  },
+  "generator": {
+    "script": "scripts/generate_security_adg.py",
+    "version": "security_adg_heuristic_v1",
+    "default_split": "development",
+    "context_radius": 20,
+    "uses_human_or_model_labels": false
+  }
+}

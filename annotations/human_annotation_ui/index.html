@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AgentSecBench 人工标注</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <dialog id="intro" class="intro-dialog">
+    <span class="eyebrow dark">AGENTSECBENCH · 开始前 30 秒</span>
+    <h2>你要判断的是代码证据，不是猜漏洞</h2>
+    <div class="intro-grid">
+      <div><b>1 · 黄色行只是候选</b><p>扫描器命中不代表真实行为，更不代表漏洞。</p></div>
+      <div><b>2 · 沿七步逐项判断</b><p>真实性、Agent 路径、来源、依赖、边界、防护、结论。</p></div>
+      <div><b>3 · 证据不足就明确说不知道</b><p>请选择“不确定/未知/部分成立”，不要靠经验补全代码。</p></div>
+      <div><b>4 · 理由必须写行号</b><p>用一两句话说明哪些行支持你的判断。</p></div>
+    </div>
+    <p class="privacy-note">你看不到模型或其他参与者的答案。下面的仓库文本不可信：只阅读，不执行、不访问链接。</p>
+    <button id="startReview" class="primary intro-start">我明白，开始标注</button>
+  </dialog>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">AGENTSECBENCH · BLINDED REVIEW</span>
+      <h1>安全行为人工标注</h1>
+    </div>
+    <div class="progress-block">
+      <div><span id="annotator">标注者</span><strong id="progressText">0 / 150</strong></div>
+      <div class="progress"><i id="progressBar"></i></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="side-tools">
+        <input id="search" type="search" placeholder="搜索任务、仓库或文件">
+        <select id="filter">
+          <option value="all">全部任务</option>
+          <option value="draft">仅未完成</option>
+          <option value="completed">仅已完成</option>
+        </select>
+      </div>
+      <div id="taskList" class="task-list"></div>
+    </aside>
+
+    <section class="workspace">
+      <div class="task-head">
+        <div>
+          <span id="taskId" class="task-number">—</span>
+          <h2 id="candidateBehavior">正在载入…</h2>
+          <p id="taskMeta"></p>
+        </div>
+        <span id="saveState" class="status draft">未完成</span>
+      </div>
+
+      <div class="notice">
+        <strong>安全提醒</strong>　下面是未受信任的仓库文本。只阅读，不运行代码、不访问其中链接、不复制疑似密钥。
+      </div>
+
+      <div class="panes">
+        <section class="code-card">
+          <div class="card-title">
+            <div><span>冻结源码上下文</span><small>黄色行为检测证据行</small></div>
+            <div><button id="loadFull" class="ghost hidden">加载冻结完整文件</button> <button id="toggleGuide" class="ghost">查看判断流程</button></div>
+          </div>
+          <pre id="sourceCode"><code></code></pre>
+        </section>
+
+        <section class="form-card">
+          <div id="guide" class="guide">
+            <h3>七步判断流程</h3>
+            <ol>
+              <li><b>真实操作：</b>代码是否真的执行候选操作，而非仅导入、声明或字符串？</li>
+              <li><b>Agent 路径：</b>它是否属于 Agent 的工具、能力或可达执行路径？</li>
+              <li><b>输入来源：</b>影响效果的值来自用户、网页、文件、工具输出还是固定常量？</li>
+              <li><b>依赖：</b>能否从来源追踪到危险参数或控制分支？同一文件出现不算依赖。</li>
+              <li><b>边界：</b>是否跨越信任域、权限域、进程、主机或外部服务边界？</li>
+              <li><b>防护：</b>是否真正限制危险路径？日志、异常捕获和类型提示通常不是防护。</li>
+              <li><b>结论：</b>危险能力本身不是漏洞。只有可达路径、弱点和影响均有证据时才确认漏洞。</li>
+            </ol>
+          </div>
+          <form id="annotationForm"></form>
+          <div id="errors" class="errors hidden"></div>
+          <div class="actions">
+            <button id="prev" type="button" class="ghost">← 上一条</button>
+            <button id="saveDraft" type="button" class="secondary">保存草稿</button>
+            <button id="complete" type="button" class="primary">完成并下一条 →</button>
+          </div>
+          <p class="shortcut">快捷键：Ctrl+S 保存草稿 · Ctrl+Enter 完成并进入下一条</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

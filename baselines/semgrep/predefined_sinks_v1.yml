@@ -1,0 +1,211 @@
+rules:
+  - id: asb.python.command-execution
+    languages: [python]
+    message: Predefined Python process-execution sink.
+    severity: INFO
+    metadata: {category: command_execution, baseline: predefined_sink_v1}
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(...)
+          - pattern: subprocess.Popen(...)
+          - pattern: subprocess.call(...)
+          - pattern: subprocess.check_call(...)
+          - pattern: subprocess.check_output(...)
+          - pattern: os.system(...)
+          - pattern: os.popen(...)
+
+  - id: asb.python.dynamic-code-execution
+    languages: [python]
+    message: Predefined Python dynamic-code execution sink.
+    severity: INFO
+    metadata: {category: dynamic_code_execution, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: compile(...)
+
+  - id: asb.python.filesystem-read
+    languages: [python]
+    message: Predefined Python filesystem-read sink.
+    severity: INFO
+    metadata: {category: filesystem_read, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $P.read_text(...)
+      - pattern: $P.read_bytes(...)
+      - pattern: open($PATH, "r", ...)
+      - pattern: open($PATH, "rb", ...)
+
+  - id: asb.python.filesystem-write
+    languages: [python]
+    message: Predefined Python filesystem-write sink.
+    severity: INFO
+    metadata: {category: filesystem_write, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $P.write_text(...)
+      - pattern: $P.write_bytes(...)
+      - pattern: open($PATH, "w", ...)
+      - pattern: open($PATH, "a", ...)
+      - pattern: open($PATH, "x", ...)
+
+  - id: asb.python.filesystem-delete
+    languages: [python]
+    message: Predefined Python filesystem-delete sink.
+    severity: INFO
+    metadata: {category: filesystem_delete, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: os.remove(...)
+      - pattern: os.unlink(...)
+      - pattern: os.rmdir(...)
+      - pattern: shutil.rmtree(...)
+      - pattern: $P.unlink(...)
+      - pattern: $P.rmdir(...)
+
+  - id: asb.python.network-access
+    languages: [python]
+    message: Predefined Python network-access sink.
+    severity: INFO
+    metadata: {category: network_access, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: requests.get(...)
+      - pattern: requests.post(...)
+      - pattern: requests.request(...)
+      - pattern: httpx.get(...)
+      - pattern: httpx.post(...)
+      - pattern: httpx.request(...)
+      - pattern: aiohttp.request(...)
+      - pattern: socket.create_connection(...)
+
+  - id: asb.python.browser-control
+    languages: [python]
+    message: Predefined Python browser-control sink.
+    severity: INFO
+    metadata: {category: browser_control, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: chromium.launch(...)
+      - pattern: $PAGE.goto(...)
+      - pattern: webdriver.$DRIVER(...)
+
+  - id: asb.python.database-access
+    languages: [python]
+    message: Predefined Python database execution sink.
+    severity: INFO
+    metadata: {category: database_access, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $DB.execute(...)
+      - pattern: $DB.executemany(...)
+      - pattern: $DB.execute_query(...)
+
+  - id: asb.python.credential-access
+    languages: [python]
+    message: Predefined Python environment/credential access sink.
+    severity: INFO
+    metadata: {category: credential_access, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: os.getenv(...)
+      - pattern: os.environ.get(...)
+      - pattern: keyring.get_password(...)
+
+  - id: asb.python.external-tool-invocation
+    languages: [python]
+    message: Predefined Python external-tool dispatch sink.
+    severity: INFO
+    metadata: {category: external_tool_invocation, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $CLIENT.call_tool(...)
+      - pattern: $CLIENT.invoke_tool(...)
+
+  - id: asb.javascript.command-execution
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript process-execution sink.
+    severity: INFO
+    metadata: {category: command_execution, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: execFile(...)
+      - pattern: spawn(...)
+      - pattern: fork(...)
+      - pattern: execSync(...)
+      - pattern: spawnSync(...)
+
+  - id: asb.javascript.dynamic-code-execution
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript dynamic-code execution sink.
+    severity: INFO
+    metadata: {category: dynamic_code_execution, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: vm.runInContext(...)
+      - pattern: vm.runInNewContext(...)
+
+  - id: asb.javascript.filesystem-read
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript filesystem-read sink.
+    severity: INFO
+    metadata: {category: filesystem_read, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $FS.readFile(...)
+      - pattern: $FS.readFileSync(...)
+      - pattern: $FS.createReadStream(...)
+
+  - id: asb.javascript.filesystem-write
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript filesystem-write sink.
+    severity: INFO
+    metadata: {category: filesystem_write, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $FS.writeFile(...)
+      - pattern: $FS.writeFileSync(...)
+      - pattern: $FS.appendFile(...)
+      - pattern: $FS.createWriteStream(...)
+
+  - id: asb.javascript.filesystem-delete
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript filesystem-delete sink.
+    severity: INFO
+    metadata: {category: filesystem_delete, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $FS.rm(...)
+      - pattern: $FS.rmSync(...)
+      - pattern: $FS.unlink(...)
+      - pattern: $FS.unlinkSync(...)
+
+  - id: asb.javascript.network-access
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript network-access sink.
+    severity: INFO
+    metadata: {category: network_access, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: fetch(...)
+      - pattern: axios.get(...)
+      - pattern: axios.post(...)
+      - pattern: axios.request(...)
+      - pattern: $NET.connect(...)
+
+  - id: asb.javascript.browser-control
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript browser-control sink.
+    severity: INFO
+    metadata: {category: browser_control, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: chromium.launch(...)
+      - pattern: chromium.connect(...)
+      - pattern: $PAGE.goto(...)
+      - pattern: puppeteer.launch(...)
+
+  - id: asb.javascript.credential-access
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript environment access sink.
+    severity: INFO
+    metadata: {category: credential_access, baseline: predefined_sink_v1}
+    pattern: process.env.$KEY
+
+  - id: asb.javascript.external-tool-invocation
+    languages: [javascript, typescript]
+    message: Predefined JavaScript/TypeScript external-tool dispatch sink.
+    severity: INFO
+    metadata: {category: external_tool_invocation, baseline: predefined_sink_v1}
+    pattern-either:
+      - pattern: $CLIENT.callTool(...)
+      - pattern: $CLIENT.invokeTool(...)
+

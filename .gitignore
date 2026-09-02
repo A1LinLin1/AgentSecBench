@@ -1,0 +1,79 @@
+# Publication repository policy: ignore the research workspace by default.
+# Only the explicitly unignored code, tests, documentation, and CI files below
+# may be staged. This prevents corpus snapshots, annotations, credentials, and
+# local execution outputs from being added by an accidental `git add .`.
+/*
+!/.gitignore
+!/.github/
+!/.github/**
+
+# Method implementation and deterministic test fixtures.
+!/scripts/
+!/scripts/**
+/scripts/**/__pycache__/
+*.py[cod]
+!/tests/
+!/tests/**
+/tests/**/__pycache__/
+
+# Small, hand-authored benchmark and baseline definitions only.
+!/baselines/
+!/baselines/**
+!/benchmarks/
+/benchmarks/*
+!/benchmarks/security_adg_micro/
+!/benchmarks/security_adg_micro/**
+
+# Method configurations and standalone visualization templates.
+!/experiments/
+!/experiments/**
+
+# Public, method-level documentation only. Disclosure, reproduction records,
+# and unpublished result summaries remain local until explicitly released.
+!/docs/
+/docs/*
+!/docs/SECURITY_ADG_PIPELINE.md
+!/docs/PAPER_EXECUTION_PLAN.md
+
+# UI/framework source and annotation protocols; never participant, model, or
+# task records.
+!/annotations/
+/annotations/*
+!/annotations/annotation_guide.md
+!/annotations/annotation_guide_v2.md
+!/annotations/human_annotation_ui/
+!/annotations/human_annotation_ui/**
+!/annotations/model_audit_ui/
+!/annotations/model_audit_ui/**
+!/annotations/case_review_ui/
+!/annotations/case_review_ui/**
+!/annotations/model_annotation/
+/annotations/model_annotation/*
+!/annotations/model_annotation/*.md
+!/annotations/model_annotation/output_schema.json
+
+# Keep only toolchain metadata, never downloaded executables or bundles.
+!/tools/
+/tools/*
+!/tools/toolchain_manifest.json
+!/tools/cloudflared/
+/tools/cloudflared/README.md
+
+# Local/private material (listed explicitly for readability and defense in
+# depth; these are already covered by the default-deny rule above).
+/.secrets/
+/.venv/
+/.runtime/
+/dataset/
+/metadata/
+/analysis/
+/graphs/
+/artifacts/
+/benchmarks/derived/
+/annotations/annotator/
+/annotations/model_audit/reviewers/
+/annotations/model_annotation/inputs/
+/annotations/model_annotation/runs/
+/tools/_downloads/
+/tools/codeql-*/
+/tools/cloudflared/cloudflared.exe

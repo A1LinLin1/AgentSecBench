@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AgentSecBench 模型辅助审核</title>
+  <link rel="stylesheet" href="/base.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="audit-body">
+  <dialog id="intro" class="intro-dialog">
+    <span class="eyebrow dark">MODEL-ASSISTED AUDIT · 非独立盲标</span>
+    <h2>审核模型意见，而不是照抄多数票</h2>
+    <div class="intro-grid">
+      <div><b>先看代码</b><p>模型意见只是待审证据。先检查黄色源码行及完整上下文。</p></div>
+      <div><b>再看分歧</b><p>逐字段比较五个模型；票数高不代表答案正确。</p></div>
+      <div><b>明确推翻</b><p>最终值不同于唯一多数意见时，系统自动记录被推翻字段。</p></div>
+      <div><b>留下审计依据</b><p>说明接受或修改模型意见的原因，并引用源码行号。</p></div>
+    </div>
+    <p class="privacy-note">此模式会暴露模型输出，不能作为独立人工标注。应用于模型误差分析、复核或盲标完成后的仲裁。</p>
+    <button id="startReview" class="primary intro-start">进入模型辅助审核</button>
+  </dialog>
+
+  <header class="topbar audit-topbar">
+    <div><span class="eyebrow">AGENTSECBENCH · MODEL AUDIT</span><h1>五模型标注审核</h1></div>
+    <div class="progress-block"><div><span id="reviewer">审核者</span><strong id="progressText">0 / 150</strong></div><div class="progress"><i id="progressBar"></i></div></div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="side-tools">
+        <input id="search" type="search" placeholder="搜索任务、仓库或文件">
+        <select id="filter"><option value="all">全部任务</option><option value="draft">仅未完成</option><option value="completed">仅已完成</option><option value="HIGH">仅高分歧</option></select>
+      </div>
+      <div id="taskList" class="task-list"></div>
+    </aside>
+
+    <section class="workspace">
+      <div class="task-head">
+        <div><span id="taskId" class="task-number">—</span><h2 id="candidateBehavior">正在载入…</h2><p id="taskMeta"></p></div>
+        <div class="head-badges"><span id="priority" class="priority">—</span><span id="saveState" class="status draft">未完成</span></div>
+      </div>
+      <div class="notice audit-notice"><strong>审核模式</strong>　模型投票是待验证建议。最终标签必须以冻结源码为依据，不能用多数票替代人工判断。</div>
+
+      <div class="audit-panes">
+        <section class="code-card sticky-card">
+          <div class="card-title"><div><span>冻结源码上下文</span><small>黄色为扫描器证据行</small></div><button id="loadFull" class="ghost hidden">加载冻结完整文件</button></div>
+          <pre id="sourceCode"><code></code></pre>
+        </section>
+
+        <section class="audit-card">
+          <div class="audit-toolbar">
+            <div><b>逐字段投票与人工最终值</b><small id="disagreementText"></small></div>
+            <button id="adoptPlurality" class="secondary">采用唯一最高票</button>
+          </div>
+          <div id="voteMatrix" class="vote-matrix"></div>
+
+          <section class="audit-section">
+            <h3>防护类型与最终文字证据</h3>
+            <p>防护类型可多选；效果目标、最终理由和审核说明由人工填写。</p>
+            <div id="guardChecks" class="checks"></div>
+            <label class="audit-label">效果目标<input id="effectTarget" class="text-field" placeholder="受影响的资源、系统或操作"></label>
+            <label class="audit-label">人工最终理由<textarea id="rationale" class="text-field" placeholder="引用源码行号，说明最终安全判断"></textarea></label>
+            <label class="audit-label">模型审核说明<textarea id="auditNote" class="text-field" placeholder="说明为什么接受或修改模型意见；指出关键模型错误或缺失上下文"></textarea></label>
+          </section>
+
+          <section class="audit-section model-section">
+            <h3>五模型完整解释</h3>
+            <div id="modelTabs" class="model-tabs"></div>
+            <div id="modelDetail" class="model-detail"></div>
+          </section>
+
+          <div id="errors" class="errors hidden"></div>
+          <div class="actions"><button id="prev" class="ghost" type="button">← 上一条</button><button id="saveDraft" class="secondary" type="button">保存草稿</button><button id="complete" class="primary" type="button">完成并下一条 →</button></div>
+          <p class="shortcut">Ctrl+S 保存草稿 · Ctrl+Enter 完成并进入下一条</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+.source-review-card {
+  border-color: #a9cfc2;
+  background: #f7fcfa;
+}
+
+.source-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.source-review-card p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .source-review-grid {
+    grid-template-columns: 1fr;
+  }
+}

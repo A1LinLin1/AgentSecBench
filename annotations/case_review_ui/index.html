@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AgentSecBench 案例复核台</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/review-source.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">AGENTSECBENCH · CASE REVIEW</span>
+      <h1>安全案例复核台</h1>
+      <p>把多条 finding 合并成可解释、可计数的根因案例</p>
+    </div>
+    <div class="progress-box">
+      <div><span id="reviewer">审核者</span><strong id="progressText">0 / 19</strong></div>
+      <div class="progress"><i id="progressBar"></i></div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-tools">
+        <input id="search" type="search" placeholder="搜索任务、仓库、文件">
+        <select id="filter">
+          <option value="all">全部 finding</option>
+          <option value="draft">仅未完成</option>
+          <option value="completed">仅已完成</option>
+          <option value="confirmed">辅助确认项</option>
+          <option value="candidate">辅助候选项</option>
+        </select>
+      </div>
+      <div class="count-note"><b>注意：</b>19 条 finding ≠ 19 个漏洞</div>
+      <div id="taskList" class="task-list"></div>
+    </aside>
+
+    <section class="workspace">
+      <div class="task-head">
+        <div>
+          <div class="badges"><span id="taskId" class="task-id">—</span><span id="assistedStatus" class="badge">—</span></div>
+          <h2 id="behavior">正在载入…</h2>
+          <p id="meta"></p>
+        </div>
+        <span id="saveState" class="save-state draft">未完成</span>
+      </div>
+
+      <div class="workflow-strip">
+        <span>1 可达性</span><span>2 输入来源</span><span>3 访问控制</span><span>4 影响</span><span>5 根因合并</span><span>6 最终标签</span>
+      </div>
+
+      <section id="repositoryEvidence" class="repository-evidence hidden"></section>
+
+      <div class="columns">
+        <section class="evidence-column">
+          <article class="card code-card">
+            <div class="card-head">
+              <div><b>冻结代码证据</b><small>黄色为扫描器命中行</small></div>
+              <button id="loadFull" class="ghost hidden">加载完整文件</button>
+            </div>
+            <div id="sourceCode" class="source-code"></div>
+          </article>
+
+          <details class="card assisted-card" open>
+            <summary>人工辅助审核结论 <span>仅作线索，不是最终答案</span></summary>
+            <div id="assistedSummary"></div>
+          </details>
+
+          <details id="sourceReviewCard" class="card source-review-card hidden" open>
+            <summary><b id="sourceReviewerName">前序审核者</b>的完整结论 <span>逐项核对后再采用</span></summary>
+            <div>
+              <div id="sourceReview"></div>
+              <button id="adoptSourceReview" type="button" class="suggestion">把这份结论填入右侧（仍可修改）</button>
+            </div>
+          </details>
+
+          <details class="card models-card">
+            <summary>五个模型的完整判断 <span>需要时再展开</span></summary>
+            <div id="modelDetails"></div>
+          </details>
+        </section>
+
+        <form id="reviewForm" class="review-column" autocomplete="off">
+          <section class="review-step" data-step="1">
+            <div class="step-title"><i>1</i><div><h3>在仓库的实际部署中能否到达？</h3><p>不要只看危险函数是否存在，要确认入口和调用链。</p></div></div>
+            <div class="choice-grid" data-field="reachability">
+              <label><input type="radio" name="reachability" value="documented_default"><b>默认部署可达</b><small>文档、入口或默认配置直接启用</small></label>
+              <label><input type="radio" name="reachability" value="conditional"><b>条件可达</b><small>需要特定开关、角色或部署方式</small></label>
+              <label><input type="radio" name="reachability" value="not_reachable"><b>不可达</b><small>死代码、测试代码或没有入口</small></label>
+              <label><input type="radio" name="reachability" value="unknown"><b>证据不足</b><small>当前仓库无法确定调用链</small></label>
+            </div>
+          </section>
+
+          <section class="review-step" data-step="2">
+            <div class="step-title"><i>2</i><div><h3>谁能控制危险参数？</h3><p>判断用户、网页内容、工具输出或 LLM 是否能影响该值。</p></div></div>
+            <div class="choice-grid three" data-field="caller_trust">
+              <label><input type="radio" name="caller_trust" value="untrusted_or_model"><b>不可信输入可控</b><small>外部用户、内容或模型能够控制</small></label>
+              <label><input type="radio" name="caller_trust" value="trusted_only"><b>仅可信内部调用</b><small>固定常量或受信代码路径</small></label>
+              <label><input type="radio" name="caller_trust" value="unknown"><b>来源不明确</b><small>缺少调用者或跨文件上下文</small></label>
+            </div>
+          </section>
+
+          <section class="review-step" data-step="3">
+            <div class="step-title"><i>3</i><div><h3>入口是否有有效访问控制？</h3><p>认证、授权、确认、沙箱或严格的目标限制都可以构成防护。</p></div></div>
+            <div class="choice-grid" data-field="access_control">
+              <label><input type="radio" name="access_control" value="absent"><b>没有防护</b><small>未发现有效控制</small></label>
+              <label><input type="radio" name="access_control" value="present_ineffective"><b>防护无效或不完整</b><small>存在检查但可以绕过或覆盖不足</small></label>
+              <label><input type="radio" name="access_control" value="present_effective"><b>防护有效</b><small>能够阻断不可信利用路径</small></label>
+              <label><input type="radio" name="access_control" value="unknown"><b>无法判断</b><small>缺少部署或授权上下文</small></label>
+            </div>
+          </section>
+
+          <section class="review-step" data-step="4">
+            <div class="step-title"><i>4</i><div><h3>成功利用会造成什么影响？</h3><p>可多选；只记录代码和部署证据能够支持的影响。</p></div></div>
+            <div id="impactChecks" class="impact-grid">
+              <label><input type="checkbox" value="command_execution">命令执行</label>
+              <label><input type="checkbox" value="file_read">文件读取</label>
+              <label><input type="checkbox" value="file_write">文件写入</label>
+              <label><input type="checkbox" value="credential_access">凭据访问</label>
+              <label><input type="checkbox" value="network_access">网络访问</label>
+              <label><input type="checkbox" value="browser_control">浏览器控制</label>
+              <label><input type="checkbox" value="availability">可用性破坏</label>
+              <label><input type="checkbox" value="other">其他影响</label>
+              <label><input type="checkbox" value="none">无直接安全影响</label>
+            </div>
+          </section>
+
+          <section class="review-step" data-step="5">
+            <div class="step-title"><i>5</i><div><h3>它是新案例，还是已有案例的另一条 finding？</h3><p>相同入口、信任边界和修复方式通常应合并为一个根因案例。</p></div></div>
+            <div class="choice-grid" data-field="case_relation">
+              <label><input type="radio" name="case_relation" value="new_case"><b>建立新案例</b><small>独立根因，需要独立修复</small></label>
+              <label><input type="radio" name="case_relation" value="merge_existing"><b>合并已有案例</b><small>同一根因的另一种表现或影响</small></label>
+              <label><input type="radio" name="case_relation" value="not_security_case"><b>不形成安全案例</b><small>正常能力、误报或无安全边界</small></label>
+              <label><input type="radio" name="case_relation" value="unknown"><b>暂不确定</b><small>需要补充证据再聚类</small></label>
+            </div>
+            <div class="field-row">
+              <label id="caseIdWrap">新案例编号<input id="caseId" placeholder="例如 ASB-CASE-0002"></label>
+              <label id="mergeIdWrap">合并到<input id="mergeInto" placeholder="例如 ASB-CASE-0001"></label>
+            </div>
+            <label>案例标题<input id="caseTitle" placeholder="一句话描述共同入口和安全影响"></label>
+            <button id="useSuggestion" type="button" class="suggestion hidden">采用仓库核查建议的案例编号</button>
+            <label>共同根因<textarea id="rootCause" rows="3" placeholder="例：默认暴露的 MCP SSE 入口未认证，并向调用者提供宿主机控制工具"></textarea></label>
+          </section>
+
+          <section class="review-step final-step" data-step="6">
+            <div class="step-title"><i>6</i><div><h3>最终案例标签</h3><p>这里决定后续统计方式；“确认漏洞”条件最严格。</p></div></div>
+            <div class="final-labels" data-field="final_case_label">
+              <label><input type="radio" name="final_case_label" value="confirmed_vulnerability"><b>确认漏洞</b><small>可达、可控、无有效防护且有明确影响</small></label>
+              <label><input type="radio" name="final_case_label" value="vulnerability_candidate"><b>漏洞候选</b><small>证据较强，但仍有关键条件待确认</small></label>
+              <label><input type="radio" name="final_case_label" value="unsafe_capability"><b>危险能力</b><small>高权限设计，但未违反预期信任边界</small></label>
+              <label><input type="radio" name="final_case_label" value="rejected"><b>排除</b><small>误报、防护有效或没有不可信路径</small></label>
+              <label><input type="radio" name="final_case_label" value="insufficient_context"><b>上下文不足</b><small>无法完成最终安全判断</small></label>
+            </div>
+            <label>证据引用<textarea id="evidenceRefs" rows="3" placeholder="列出仓库文件与行号，例如 Dockerfile:23；docker-compose.yml:18-20"></textarea></label>
+            <label>最终理由<textarea id="rationale" rows="4" placeholder="说明输入如何到达危险行为、防护为何有效或无效、影响是什么，以及为何合并或拆分案例"></textarea></label>
+            <label>仍缺少的上下文<textarea id="missingContext" rows="3" placeholder="若没有可写“无”；若选择上下文不足，必须明确需要什么证据"></textarea></label>
+          </section>
+
+          <div id="errors" class="errors hidden"></div>
+          <div class="actions">
+            <button id="prev" type="button" class="ghost">← 上一条</button>
+            <button id="saveDraft" type="button" class="secondary">保存草稿</button>
+            <button id="complete" type="button" class="primary">完成并进入下一条 →</button>
+          </div>
+          <p class="shortcut">Ctrl+S 保存草稿 · Ctrl+Enter 完成</p>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+name: Security-ADG artifact checks
+
+on:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/security-adg-artifacts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/security-adg-artifacts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build-showcase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Security-ADG tests
+        run: python -m unittest tests/test_security_adg_dataflow.py tests/test_security_adg_showcase.py
+      - name: Build deterministic showcase fixture
+        run: >-
+          python scripts/generate_security_adg_showcase.py
+          --graphs tests/fixtures/security_adg_showcase.jsonl
+          --output-dir artifacts/security-adg-ci-showcase
+          --max-graphs 2
+      - name: Upload interactive evidence view
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-adg-showcase
+          path: artifacts/security-adg-ci-showcase
+          if-no-files-found: error
