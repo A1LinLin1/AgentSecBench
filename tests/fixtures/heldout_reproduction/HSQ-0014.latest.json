@@ -1,0 +1,21 @@
+{
+  "scouting_id": "HSQ-0014",
+  "task_id": "HO-0014",
+  "repository": "dddabtc/winremote-mcp",
+  "frozen_commit": "2185ee68428e76f29176291a2a862b1561468462",
+  "candidate_file": "src/winremote/__main__.py",
+  "candidate_line": 493,
+  "operation": "Shell(command) reaches PowerShell -Command",
+  "payload_safety": "subprocess monkeypatch only; no shell execution",
+  "human_labels_used": false,
+  "model_labels_used": false,
+  "shell_executed": false,
+  "network_used": false,
+  "file_write_performed": false,
+  "claim_boundary": {
+    "classification": "confirmed security-sensitive Agent/MCP behavior with local tool-parameter-to-command flow",
+    "not_a_vulnerability_claim": true,
+    "paper_use": "positive local reproduction evidence for Security-ADG behavior discovery"
+  },
+  "status": "confirmed_mcp_tool_parameter_to_powershell_command_argument"
+}

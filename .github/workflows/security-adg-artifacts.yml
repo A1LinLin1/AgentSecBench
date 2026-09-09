@@ -26,7 +26,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run Security-ADG tests
-        run: python -m unittest tests/test_security_adg_dataflow.py tests/test_security_adg_showcase.py
+        run: >-
+          python -m unittest
+          tests/test_security_adg_dataflow.py
+          tests/test_security_adg_showcase.py
+          tests/test_heldout_reproduction_case_matrix.py
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py
@@ -38,4 +42,15 @@ jobs:
         with:
           name: security-adg-showcase
           path: artifacts/security-adg-ci-showcase
+          if-no-files-found: error
+      - name: Build deterministic held-out case matrix fixture
+        run: >-
+          python scripts/build_heldout_reproduction_case_matrix.py
+          --input-dir tests/fixtures/heldout_reproduction
+          --output-dir artifacts/heldout-case-matrix-fixture
+      - name: Upload held-out case matrix fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: heldout-case-matrix-fixture
+          path: artifacts/heldout-case-matrix-fixture
           if-no-files-found: error

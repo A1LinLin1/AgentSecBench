@@ -1,0 +1,37 @@
+{
+  "scouting_id": "HSQ-0300",
+  "task_id": "HO-0300",
+  "repository": "nexu-io/html-anything",
+  "frozen_commit": "779fce327024612eba752fe42e1267a3918f7640",
+  "candidate_file": "next/src/lib/skills/install.ts",
+  "candidate_line": 246,
+  "operation": "installFromGitHub(spec) reaches guarded system tar extraction",
+  "payload_safety": "source-level construction proof only; no fetch, no tar extraction, no filesystem mutation",
+  "human_labels_used": false,
+  "model_labels_used": false,
+  "real_tar_executed": false,
+  "network_used": false,
+  "file_write_performed": false,
+  "preflight_guard_signals": {
+    "compressed_size_cap": true,
+    "reject_parent_directory_segment": true,
+    "reject_symlink_hardlink_device_entries": true
+  },
+  "unexecuted_construction_proof": {
+    "source_to_sink_path": [
+      "installFromGitHub(spec)",
+      "preflightTarball(tarPath)",
+      "extractTarball(tarPath, extractDir)",
+      "spawn(\"tar\", argv)"
+    ]
+  },
+  "claim_boundary": {
+    "classification": "guarded external-content-to-local-toolchain behavior; fixed-argv system tar extraction",
+    "not_a_vulnerability_claim": true,
+    "why_not_cve_ready": [
+      "The verified process invocation uses a fixed argv list and no shell option."
+    ],
+    "paper_use": "guard-aware Security-ADG interpretation"
+  },
+  "status": "confirmed_guarded_github_tarball_to_fixed_argv_tar_extraction"
+}
