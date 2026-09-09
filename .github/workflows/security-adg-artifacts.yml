@@ -33,6 +33,7 @@ jobs:
           tests/test_heldout_reproduction_case_matrix.py
           tests/test_guard_ablation_table.py
           tests/test_paper_results_snapshot.py
+          tests/test_export_paper_tables.py
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py
@@ -78,4 +79,15 @@ jobs:
         with:
           name: paper-results-snapshot-fixture
           path: artifacts/paper-results-snapshot-fixture
+          if-no-files-found: error
+      - name: Build deterministic paper table fixture
+        run: >-
+          python scripts/export_paper_tables.py
+          --snapshot artifacts/paper-results-snapshot-fixture/paper_results_snapshot.json
+          --output-dir artifacts/paper-table-fixture
+      - name: Upload paper table fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-table-fixture
+          path: artifacts/paper-table-fixture
           if-no-files-found: error
