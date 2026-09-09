@@ -32,6 +32,7 @@ jobs:
           tests/test_security_adg_showcase.py
           tests/test_heldout_reproduction_case_matrix.py
           tests/test_guard_ablation_table.py
+          tests/test_paper_results_snapshot.py
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py
@@ -65,4 +66,16 @@ jobs:
         with:
           name: guard-ablation-fixture
           path: artifacts/guard-ablation-fixture
+          if-no-files-found: error
+      - name: Build deterministic paper results snapshot fixture
+        run: >-
+          python scripts/build_paper_results_snapshot.py
+          --matrix artifacts/heldout-case-matrix-fixture/heldout_reproduction_case_matrix.json
+          --ablation artifacts/guard-ablation-fixture/guard_ablation_summary.json
+          --output-dir artifacts/paper-results-snapshot-fixture
+      - name: Upload paper results snapshot fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-results-snapshot-fixture
+          path: artifacts/paper-results-snapshot-fixture
           if-no-files-found: error
