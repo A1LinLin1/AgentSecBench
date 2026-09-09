@@ -19,6 +19,9 @@
 # Small, hand-authored benchmark and baseline definitions only.
 !/baselines/
 !/baselines/**
+/baselines/results/
+/baselines/codeql/heldout/
+/baselines/semgrep/heldout/
 !/benchmarks/
 /benchmarks/*
 !/benchmarks/security_adg_micro/
@@ -34,6 +37,14 @@
 /docs/*
 !/docs/SECURITY_ADG_PIPELINE.md
 !/docs/PAPER_EXECUTION_PLAN.md
+!/docs/MUTATION_V4_PROTOCOL.md
+!/docs/PROJECT_REVIEW_20260903.md
+!/docs/GOLD_SET_DEFINITION.md
+!/docs/BASELINE_MATCHING_POLICY.md
+!/docs/HELD_OUT_ANNOTATION_OPERATIONS.md
+!/docs/MODEL_ASSISTED_REPRODUCIBLE_GOLD_PROTOCOL.md
+!/docs/METHOD_SECTION_DRAFT.md
+!/docs/PAPER_CLOSING_MASTER_DOCUMENT.md
 
 # UI/framework source and annotation protocols; never participant, model, or
 # task records.
@@ -41,6 +52,16 @@
 /annotations/*
 !/annotations/annotation_guide.md
 !/annotations/annotation_guide_v2.md
+!/annotations/recall_inventory/
+/annotations/recall_inventory/*
+!/annotations/recall_inventory/HELD_OUT_ANNOTATION_GUIDE.md
+!/annotations/heldout_annotation_ui/
+!/annotations/heldout_annotation_ui/**
+!/annotations/heldout_model_panel/
+/annotations/heldout_model_panel/*
+!/annotations/heldout_model_panel/system_prompt.md
+!/annotations/heldout_model_panel/user_prompt_template.md
+!/annotations/heldout_model_panel/output_schema.json
 !/annotations/human_annotation_ui/
 !/annotations/human_annotation_ui/**
 !/annotations/model_audit_ui/
