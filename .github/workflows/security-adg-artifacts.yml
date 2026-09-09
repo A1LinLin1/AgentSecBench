@@ -31,6 +31,7 @@ jobs:
           tests/test_security_adg_dataflow.py
           tests/test_security_adg_showcase.py
           tests/test_heldout_reproduction_case_matrix.py
+          tests/test_guard_ablation_table.py
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py
@@ -53,4 +54,15 @@ jobs:
         with:
           name: heldout-case-matrix-fixture
           path: artifacts/heldout-case-matrix-fixture
+          if-no-files-found: error
+      - name: Build deterministic guard ablation fixture
+        run: >-
+          python scripts/build_guard_ablation_table.py
+          --matrix artifacts/heldout-case-matrix-fixture/heldout_reproduction_case_matrix.json
+          --output-dir artifacts/guard-ablation-fixture
+      - name: Upload guard ablation fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-ablation-fixture
+          path: artifacts/guard-ablation-fixture
           if-no-files-found: error
