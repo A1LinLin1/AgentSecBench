@@ -72,6 +72,10 @@ def evaluate(rows: list[dict]) -> dict:
     guard_f1 = 2 * guard_precision * guard_recall / (guard_precision + guard_recall) if guard_precision is not None and guard_recall is not None and guard_precision + guard_recall else None
     return {
         "static_detection_rate": sum(row["static_detected"] for row in rows) / len(rows) if rows else None,
+        "candidate_only_dependency": metric(
+            dependency_expected,
+            [row["static_detected"] for row in rows],
+        ),
         "dependency": metric(dependency_expected, dependency_predicted),
         "source_presence": metric(source_expected, source_predicted),
         "guard_presence": metric(guard_expected, guard_predicted),
@@ -108,6 +112,8 @@ def main() -> int:
         guard_nodes = [node for node in graph["nodes"] if node["type"] == "guard_candidate"] if graph else []
         rows.append({
             "mutation_id": mutation["mutation_id"],
+            "source_sample_id": mutation.get("source_sample_id"),
+            "source_repo": mutation.get("source_repo"),
             "language": mutation["language"],
             "category": mutation["category"],
             "oracle": mutation["oracle"],
@@ -122,14 +128,19 @@ def main() -> int:
             },
         })
     grouped: dict[str, list[dict]] = defaultdict(list)
+    by_source_repository: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
         grouped[row["language"]].append(row)
+        by_source_repository[f"{row.get('source_sample_id') or 'unknown'}:{row.get('source_repo') or 'unknown'}"].append(row)
     report = {
         "suite": catalog["metadata"]["suite"],
         "ground_truth": "controlled source-level mutation oracle",
         "mutation_count": len(rows),
         "overall": evaluate(rows),
         "by_language": {language: evaluate(items) for language, items in sorted(grouped.items())},
+        "by_source_repository": {
+            source: evaluate(items) for source, items in sorted(by_source_repository.items())
+        },
         "mismatches": [
             row for row in rows
             if row["oracle"]["dependency"] != row["observed"]["dependency"]

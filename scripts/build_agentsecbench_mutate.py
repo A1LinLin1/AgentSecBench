@@ -280,6 +280,83 @@ def python_mutations_v3(sample_id: str) -> list[dict]:
     ]
 
 
+def python_mutations_v4(sample_id: str) -> list[dict]:
+    """Balanced, post-freeze semantic-confounder probes for Security-ADG v2.4.
+
+    This suite is intentionally evaluated on source repositories disjoint from
+    v1, v2, and v3.  Four positive cases represent distinct local trust-source
+    paths, while four negative cases retain a detectable security-sensitive
+    operation but deliberately break the input-to-effect dependency.
+    """
+    prefix = f"MUT-{sample_id}-PY4"
+    return [
+        {
+            "mutation_id": f"{prefix}-01",
+            "file": f"asb_mutations/{sample_id.lower()}_tool_argv.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_tool_argv",
+            "oracle": {"dependency": True, "source_type": "agent_tool_parameter", "guard_kind": None, "polarity": "positive_tool_argv"},
+            "source": "import subprocess\n\n@server.tool\ndef asb_mutate_tool_argv(action):\n    argv = ['sh', '-c', action]\n    return subprocess.run(argv)\n",
+        },
+        {
+            "mutation_id": f"{prefix}-02",
+            "file": f"asb_mutations/{sample_id.lower()}_mapping_transform.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_mapping_transform",
+            "oracle": {"dependency": True, "source_type": "function_parameter", "guard_kind": None, "polarity": "positive_mapping_transform"},
+            "source": "import subprocess\n\ndef asb_mutate_mapping_transform(payload):\n    raw = payload['command']\n    prepared = f'{raw}'.strip()\n    return subprocess.run(prepared, shell=True)\n",
+        },
+        {
+            "mutation_id": f"{prefix}-03",
+            "file": f"asb_mutations/{sample_id.lower()}_environment.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_environment",
+            "oracle": {"dependency": True, "source_type": "source_api", "guard_kind": None, "polarity": "positive_environment_source"},
+            "source": "import os\nimport subprocess\n\ndef asb_mutate_environment():\n    runtime_value = os.getenv('ASB_V4_COMMAND')\n    return subprocess.run(runtime_value, shell=True)\n",
+        },
+        {
+            "mutation_id": f"{prefix}-04",
+            "file": f"asb_mutations/{sample_id.lower()}_guarded.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_guarded",
+            "oracle": {"dependency": True, "source_type": "function_parameter", "guard_kind": "dominating_if", "polarity": "positive_guarded_dependency"},
+            "source": "import subprocess\n\ndef asb_mutate_guarded(command):\n    if command.startswith('echo '):\n        return subprocess.run(command, shell=True)\n    return None\n",
+        },
+        {
+            "mutation_id": f"{prefix}-05",
+            "file": f"asb_mutations/{sample_id.lower()}_constant_overwrite.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_constant_overwrite",
+            "oracle": {"dependency": False, "source_type": None, "guard_kind": None, "polarity": "negative_constant_overwrite"},
+            "source": "import subprocess\n\ndef asb_mutate_constant_overwrite(command):\n    command = 'echo asb-v4-fixed'\n    return subprocess.run(command, shell=True)\n",
+        },
+        {
+            "mutation_id": f"{prefix}-06",
+            "file": f"asb_mutations/{sample_id.lower()}_dead_input.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_dead_input",
+            "oracle": {"dependency": False, "source_type": None, "guard_kind": None, "polarity": "negative_dead_input"},
+            "source": "import subprocess\n\ndef asb_mutate_dead_input(external_command):\n    external_command.strip()\n    selected = 'echo asb-v4-safe'\n    return subprocess.run(selected, shell=True)\n",
+        },
+        {
+            "mutation_id": f"{prefix}-07",
+            "file": f"asb_mutations/{sample_id.lower()}_literal_argv.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_literal_argv",
+            "oracle": {"dependency": False, "source_type": None, "guard_kind": None, "polarity": "negative_literal_argv"},
+            "source": "import subprocess\n\ndef asb_mutate_literal_argv(command):\n    return subprocess.run(['echo', 'asb-v4-safe'])\n",
+        },
+        {
+            "mutation_id": f"{prefix}-08",
+            "file": f"asb_mutations/{sample_id.lower()}_discarded_source.py",
+            "category": "command_execution",
+            "symbol": "asb_mutate_discarded_source",
+            "oracle": {"dependency": False, "source_type": None, "guard_kind": None, "polarity": "negative_discarded_source"},
+            "source": "import os\nimport subprocess\n\ndef asb_mutate_discarded_source():\n    ignored = os.getenv('ASB_V4_COMMAND')\n    return subprocess.run('echo asb-v4-safe', shell=True)\n",
+        },
+    ]
+
+
 def run(command: list[str], cwd: Path | None = None) -> str:
     if cwd is not None:
         cwd = cwd.resolve()
@@ -319,10 +396,15 @@ def build_one(row: dict[str, str], root: Path, suite: str, mutation_profile: str
     destination.mkdir(parents=True)
     source = BASE_DIR / row["repository_path"]
     extract_archive(source, row["git_commit"], destination)
-    if mutation_profile in {"v2_python", "v3_python"}:
+    if mutation_profile in {"v2_python", "v3_python", "v4_python"}:
         if row["dominant_language"] != "Python":
             raise RuntimeError(f"{mutation_profile} profile only supports Python repositories")
-        mutations = python_mutations_v2(row["sample_id"]) if mutation_profile == "v2_python" else python_mutations_v3(row["sample_id"])
+        profiles = {
+            "v2_python": python_mutations_v2,
+            "v3_python": python_mutations_v3,
+            "v4_python": python_mutations_v4,
+        }
+        mutations = profiles[mutation_profile](row["sample_id"])
     else:
         mutations = python_mutations(row["sample_id"]) if row["dominant_language"] == "Python" else typescript_mutations(row["sample_id"])
     for mutation in mutations:
@@ -370,7 +452,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--seed", default=DEFAULT_SEED)
     parser.add_argument("--suite", help="Suite identifier stored in derived provenance (defaults to root directory name).")
-    parser.add_argument("--mutation-profile", choices=("v1", "v2_python", "v3_python"), default="v1")
+    parser.add_argument("--mutation-profile", choices=("v1", "v2_python", "v3_python", "v4_python"), default="v1")
     parser.add_argument("--exclude-catalog", type=Path, action="append", help="Catalog whose source_sample_id values must not be reused. May be specified more than once.")
     parser.add_argument("--exclude-sample-id", action="append", default=[], help="Additional corpus sample ID to exclude (for platform-incompatible archives).")
     parser.add_argument("--python-repositories", type=int, default=6)

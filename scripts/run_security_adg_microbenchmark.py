@@ -45,7 +45,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, default=DEFAULT_CASES)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4"), default="v2_1")
+    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4", "v2_5"), default="v2_1")
     parser.add_argument("--fail-on-mismatch", action="store_true")
     args = parser.parse_args()
     cases = runpy.run_path(str(args.cases))["CASES"]
@@ -57,6 +57,8 @@ def main() -> int:
     type_predicted: set[tuple[str, str]] = set()
     guard_expected: set[tuple[str, str]] = set()
     guard_predicted: set[tuple[str, str]] = set()
+    framework_expected: set[tuple[str, str]] = set()
+    framework_predicted: set[tuple[str, str]] = set()
     dependency_expected: list[bool] = []
     dependency_predicted: list[bool] = []
     source_presence_expected: list[bool] = []
@@ -72,17 +74,19 @@ def main() -> int:
             f"fixture{extension}",
             case["evidence_lines"],
             symbol=case.get("symbol"),
-            prefer_parameter_sources=args.analysis_mode in {"v2_2", "v2_3", "v2_4"},
-            respect_parameter_overwrites=args.analysis_mode in {"v2_3", "v2_4"},
-            include_intrinsic_source_operation=args.analysis_mode != "v2_4",
+            prefer_parameter_sources=args.analysis_mode in {"v2_2", "v2_3", "v2_4", "v2_5"},
+            respect_parameter_overwrites=args.analysis_mode in {"v2_3", "v2_4", "v2_5"},
+            include_intrinsic_source_operation=args.analysis_mode not in {"v2_4", "v2_5"},
         )
         predicted_symbols = sorted({item["symbol"] for item in result.sources})
         predicted_types = sorted({item["source_type"] for item in result.sources})
         predicted_guards = sorted({item["kind"] for item in result.guards})
+        predicted_frameworks = sorted({item["framework"] for item in result.framework_evidence})
         expected = case["expected"]
         expected_symbols = sorted(expected["source_symbols"])
         expected_types = sorted(expected["source_types"])
         expected_guards = sorted(expected["guard_kinds"])
+        expected_frameworks = sorted(expected.get("frameworks", []))
         record = {
             "id": case["id"],
             "language": case["language"],
@@ -95,6 +99,8 @@ def main() -> int:
                 "source_types": predicted_types,
                 "has_dependency_path": bool(result.dependency_paths),
                 "guard_kinds": predicted_guards,
+                "frameworks": predicted_frameworks,
+                "framework_evidence": result.framework_evidence,
                 "limitations": result.limitations,
             },
             "exact_match": {
@@ -102,6 +108,7 @@ def main() -> int:
                 "source_types": expected_types == predicted_types,
                 "dependency": expected["dependency"] == bool(result.dependency_paths),
                 "guard_kinds": expected_guards == predicted_guards,
+                "frameworks": "frameworks" not in expected or expected_frameworks == predicted_frameworks,
             },
         }
         details.append(record)
@@ -114,6 +121,9 @@ def main() -> int:
         type_predicted.update((case_id, value) for value in predicted_types)
         guard_expected.update((case_id, value) for value in expected_guards)
         guard_predicted.update((case_id, value) for value in predicted_guards)
+        if "frameworks" in expected:
+            framework_expected.update((case_id, value) for value in expected_frameworks)
+            framework_predicted.update((case_id, value) for value in predicted_frameworks)
         dependency_expected.append(expected["dependency"])
         dependency_predicted.append(bool(result.dependency_paths))
         source_presence_expected.append(bool(expected_symbols))
@@ -134,6 +144,7 @@ def main() -> int:
             "source_symbol_relation": set_metrics(source_expected, source_predicted),
             "source_type_relation": set_metrics(type_expected, type_predicted),
             "guard_kind_relation": set_metrics(guard_expected, guard_predicted),
+            "framework_relation": set_metrics(framework_expected, framework_predicted) if framework_expected or framework_predicted else {"tp": 0, "fp": 0, "fn": 0, "precision": None, "recall": None, "f1": None},
             "dependency_presence": binary_counts(dependency_expected, dependency_predicted),
             "source_presence": binary_counts(source_presence_expected, source_presence_predicted),
             "guard_presence": binary_counts(guard_presence_expected, guard_presence_predicted),
