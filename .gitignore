@@ -4,6 +4,7 @@
 # local execution outputs from being added by an accidental `git add .`.
 /*
 !/.gitignore
+!/README.md
 !/.github/
 !/.github/**
 
