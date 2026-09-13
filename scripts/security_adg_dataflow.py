@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
+
+from security_adg_frameworks import detect_python_frameworks, detect_typescript_frameworks
 
 
 SOURCE_CALLS = re.compile(
@@ -16,11 +19,23 @@ TS_SIGNATURE = re.compile(
     r"(?:async\s+)?(?:function\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*(?::[^={]+)?(?:=>)?\s*\{"
 )
 TS_ASSIGNMENT = re.compile(r"^\s*(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.+?);?\s*$")
+TS_FOR_OF = re.compile(r"^\s*for\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s+of\s+(.+?)\s*\)")
+TS_REACT_STATE = re.compile(r"^\s*const\s*\[\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$]*)\s*\]\s*=\s*useState\b")
 TS_IF = re.compile(r"^\s*if\s*\((.+)\)")
+TS_ARROW_FUNCTION = re.compile(
+    r"^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*(?::[^=]+)?=>\s*\{"
+)
 RESERVED = {
     "await", "true", "false", "null", "undefined", "new", "return", "const", "let", "var",
-    "self", "this", "str", "int", "dict", "list", "None", "True", "False",
+    "self", "this", "str", "int", "dict", "list", "None", "True", "False", "string",
+    "number", "boolean", "void", "Promise", "as", "type", "interface",
 }
+
+
+def parse_python_safely(text: str) -> ast.AST:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        return ast.parse(text)
 
 
 @dataclass
@@ -31,6 +46,7 @@ class Analysis:
     guards: list[dict]
     dependency_paths: list[list[str]]
     limitations: list[str]
+    framework_evidence: list[dict] = field(default_factory=list)
 
 
 def dotted_name(node: ast.AST) -> str:
@@ -84,13 +100,35 @@ def tool_decorator(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return any(name.endswith(".tool") or name == "tool" for name in names)
 
 
-def named_python_function(tree: ast.AST, symbol: str | None) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+def named_python_function(
+    tree: ast.AST,
+    symbol: str | None,
+    target_line: int,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     if not symbol or symbol == "<module>":
         return None
     return next(
         (
             node for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == symbol
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == symbol
+            and node.lineno <= target_line <= getattr(node, "end_lineno", node.lineno)
+        ),
+        None,
+    )
+
+
+def named_python_function_anywhere(
+    tree: ast.AST,
+    symbol: str | None,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    if not symbol or symbol == "<module>":
+        return None
+    return next(
+        (
+            node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == symbol
         ),
         None,
     )
@@ -119,13 +157,48 @@ def analyze_python(
     include_intrinsic_source_operation: bool = True,
 ) -> Analysis:
     try:
-        tree = ast.parse(text)
+        tree = parse_python_safely(text)
     except SyntaxError as exc:
         return Analysis("python_ast_v1", min(evidence_lines), [], [], [], [f"parse_error:{exc.msg}"])
     call = smallest_python_call(tree, set(evidence_lines))
+    explicit_scope: ast.AST | None = None
     if call is None:
-        return Analysis("python_ast_v1", min(evidence_lines), [], [], [], ["no_call_on_evidence_line"])
-    explicit_scope = named_python_function(tree, symbol)
+        candidate_scope = named_python_function_anywhere(tree, symbol)
+        if candidate_scope is not None:
+            candidate_framework = [item.to_dict() for item in detect_python_frameworks(text, candidate_scope, tree)]
+            candidate_args = candidate_scope.args
+            candidate_params = {
+                item.arg for item in [*candidate_args.posonlyargs, *candidate_args.args, *candidate_args.kwonlyargs]
+                if item.arg not in {"self", "cls"}
+            }
+            if candidate_args.vararg:
+                candidate_params.add(candidate_args.vararg.arg)
+            if candidate_args.kwarg:
+                candidate_params.add(candidate_args.kwarg.arg)
+            operation_call = call_using_parameters(candidate_scope, candidate_params)
+            if operation_call is not None and (candidate_framework or tool_decorator(candidate_scope)):
+                call = operation_call
+                explicit_scope = candidate_scope
+        if call is None:
+            return Analysis("python_ast_v1", min(evidence_lines), [], [], [], ["no_call_on_evidence_line"])
+    if explicit_scope is None:
+        explicit_scope = named_python_function(tree, symbol, call.lineno)
+    # A static match can legitimately land on ``@server.tool()`` rather than
+    # the effectful call in the decorated function body.  Retain that narrow
+    # expansion for tool declarations, while avoiding name-only scope matching
+    # for ordinary repeated function names elsewhere in a module.
+    if explicit_scope is None and symbol and symbol != "<module>":
+        decorated = next(
+            (
+                node for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == symbol
+                and tool_decorator(node)
+            ),
+            None,
+        )
+        if decorated is not None:
+            explicit_scope = decorated
     scope = explicit_scope or enclosing_function(tree, call)
     parents: dict[ast.AST, ast.AST] = {}
     for parent in ast.walk(scope):
@@ -143,10 +216,38 @@ def analyze_python(
             params.add(args.vararg.arg)
         if args.kwarg:
             params.add(args.kwarg.arg)
-        if explicit_scope is not None and tool_decorator(scope):
+        framework_evidence = [item.to_dict() for item in detect_python_frameworks(text, scope, tree)]
+        is_tool_entrypoint = bool(framework_evidence) or tool_decorator(scope)
+        if explicit_scope is not None and is_tool_entrypoint:
             operation_call = call_using_parameters(scope, params)
             if operation_call is not None:
                 call = operation_call
+    else:
+        framework_evidence = []
+
+    def parameter_source(name: str) -> dict:
+        matched = [
+            item for item in framework_evidence
+            if name in set(item.get("parameters", []))
+        ]
+        is_tool_parameter = bool(matched) or (
+            isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)) and tool_decorator(scope)
+        )
+        source_type = "agent_tool_parameter" if is_tool_parameter else "function_parameter"
+        trust = "agent_or_external_caller" if source_type == "agent_tool_parameter" else "unknown"
+        result = {"source_type": source_type, "symbol": name, "line": scope.lineno, "trust": trust}
+        if matched:
+            primary = matched[0]
+            result.update(
+                {
+                    "framework": primary["framework"],
+                    "entrypoint_type": primary["semantic_role"],
+                    "entrypoint_symbol": primary["symbol"],
+                    "framework_confidence": primary["confidence"],
+                    "framework_pattern": primary["matched_pattern"],
+                }
+            )
+        return result
 
     definitions: dict[str, tuple[ast.AST | None, int]] = {}
     for node in ast.walk(scope):
@@ -164,6 +265,8 @@ def analyze_python(
                     definitions[name] = (node.value, node.lineno)
 
     target_names = set()
+    if isinstance(call.func, ast.Attribute):
+        target_names.update(loaded_names(call.func.value))
     for argument in [*call.args, *(keyword.value for keyword in call.keywords)]:
         target_names.update(loaded_names(argument))
     sources: list[dict] = []
@@ -177,9 +280,7 @@ def analyze_python(
         current_path = [*path, name]
         definition = definitions.get(name)
         if name in params and (not respect_parameter_overwrites or definition is None):
-            source_type = "agent_tool_parameter" if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)) and tool_decorator(scope) else "function_parameter"
-            trust = "agent_or_external_caller" if source_type == "agent_tool_parameter" else "unknown"
-            sources.append({"source_type": source_type, "symbol": name, "line": scope.lineno, "trust": trust})
+            sources.append(parameter_source(name))
             paths.append(current_path)
             return
         if definition is None:
@@ -199,9 +300,7 @@ def analyze_python(
         # ``command = sanitize(command)`` while treating a constant overwrite
         # as a local value with no parameter dependency.
         if name in params and respect_parameter_overwrites and name in dependencies:
-            source_type = "agent_tool_parameter" if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)) and tool_decorator(scope) else "function_parameter"
-            trust = "agent_or_external_caller" if source_type == "agent_tool_parameter" else "unknown"
-            sources.append({"source_type": source_type, "symbol": name, "line": scope.lineno, "trust": trust})
+            sources.append(parameter_source(name))
             paths.append(current_path)
         for dependency in dependencies:
             if dependency != name:
@@ -236,7 +335,7 @@ def analyze_python(
             })
     unique_sources = list({(item["source_type"], item["symbol"], item["line"]): item for item in sources}.values())
     unique_guards = list({(item["kind"], item["line"]): item for item in guards}.values())
-    return Analysis("python_ast_v1", call.lineno, unique_sources, unique_guards, paths, [])
+    return Analysis("python_ast_v1", call.lineno, unique_sources, unique_guards, paths, [], framework_evidence)
 
 
 def ts_function_start(lines: list[str], target_index: int) -> tuple[int, set[str]]:
@@ -249,12 +348,46 @@ def ts_function_start(lines: list[str], target_index: int) -> tuple[int, set[str
                 if IDENTIFIER.search(part.strip())
             }
             return index, params - RESERVED
+        arrow = TS_ARROW_FUNCTION.search(lines[index])
+        if arrow:
+            params = {
+                IDENTIFIER.search(part.strip()).group(0)
+                for part in arrow.group(2).split(",")
+                if IDENTIFIER.search(part.strip())
+            }
+            return index, params - RESERVED
     return max(0, target_index - 80), set()
 
 
 def identifiers(expression: str) -> set[str]:
-    strings_removed = re.sub(r"(['\"`]).*?\1", "", expression)
+    # Preserve expressions embedded in template literals: `/${encode(x)}` should
+    # still expose x as a dependency even though ordinary string content should
+    # not create identifier noise.
+    def keep_template_expressions(match: re.Match[str]) -> str:
+        literal = match.group(0)
+        return " ".join(re.findall(r"\$\{([^}]*)\}", literal))
+
+    expression = re.sub(r"`(?:\\.|[^`])*`", keep_template_expressions, expression)
+    strings_removed = re.sub(r"(['\"])(?:\\.|(?!\1).)*\1", "", expression)
     return {name for name in IDENTIFIER.findall(strings_removed) if name not in RESERVED and not name.isupper()}
+
+
+def collect_ts_call(lines: list[str], target_index: int, max_lines: int = 16) -> str:
+    """Collect a likely multi-line call expression starting at target_index."""
+    collected: list[str] = []
+    balance = 0
+    seen_open = False
+    for index in range(target_index, min(len(lines), target_index + max_lines)):
+        line = lines[index]
+        collected.append(line)
+        # This lexical balancer is intentionally conservative; it is only used
+        # to include common object-literal arguments such as fetch(..., {body}).
+        stripped = re.sub(r"(['\"`])(?:\\.|(?!\1).)*\1", "", line)
+        balance += stripped.count("(") - stripped.count(")")
+        seen_open = seen_open or "(" in stripped
+        if seen_open and balance <= 0:
+            break
+    return "\n".join(collected)
 
 
 def analyze_typescript(
@@ -265,13 +398,27 @@ def analyze_typescript(
 ) -> Analysis:
     lines = text.splitlines()
     target_index = min(evidence_lines) - 1
+    framework_evidence = [item.to_dict() for item in detect_typescript_frameworks(text, None, min(evidence_lines))]
     start, params = ts_function_start(lines, target_index)
-    target = " ".join(lines[index - 1] for index in evidence_lines if 1 <= index <= len(lines))
+    target = collect_ts_call(lines, target_index)
     opening = target.find("(")
     target_expression = target[opening + 1 :] if opening >= 0 else target
     target_names = identifiers(target_expression)
     definitions: dict[str, tuple[str, int]] = {}
+    ui_state_sources: dict[str, int] = {}
+    for index in range(max(0, target_index - 120), target_index):
+        state_match = TS_REACT_STATE.match(lines[index])
+        if state_match:
+            ui_state_sources[state_match.group(1)] = index + 1
     for index in range(start, target_index):
+        state_match = TS_REACT_STATE.match(lines[index])
+        if state_match:
+            ui_state_sources[state_match.group(1)] = index + 1
+            continue
+        for_of = TS_FOR_OF.match(lines[index])
+        if for_of:
+            definitions[for_of.group(1)] = (for_of.group(2), index + 1)
+            continue
         match = TS_ASSIGNMENT.match(lines[index])
         if match:
             definitions[match.group(1)] = (match.group(2), index + 1)
@@ -287,7 +434,35 @@ def analyze_typescript(
         current_path = [*path, name]
         definition = definitions.get(name)
         if name in params and (not respect_parameter_overwrites or definition is None):
-            sources.append({"source_type": "function_parameter", "symbol": name, "line": start + 1, "trust": "unknown"})
+            matched = [item for item in framework_evidence if name in set(item.get("parameters", []))]
+            source = {
+                "source_type": "agent_tool_parameter" if matched else "function_parameter",
+                "symbol": name,
+                "line": start + 1,
+                "trust": "agent_or_external_caller" if matched else "unknown",
+            }
+            if matched:
+                primary = matched[0]
+                source.update(
+                    {
+                        "framework": primary["framework"],
+                        "entrypoint_type": primary["semantic_role"],
+                        "entrypoint_symbol": primary["symbol"],
+                        "framework_confidence": primary["confidence"],
+                        "framework_pattern": primary["matched_pattern"],
+                    }
+                )
+            sources.append(source)
+            paths.append(current_path)
+            return
+        if name in ui_state_sources:
+            sources.append({
+                "source_type": "ui_state",
+                "symbol": name,
+                "line": ui_state_sources[name],
+                "trust": "user_or_browser_session",
+                "api": "React.useState",
+            })
             paths.append(current_path)
             return
         if definition is None:
@@ -300,7 +475,25 @@ def analyze_typescript(
             sources.append({"source_type": "source_api", "symbol": name, "api": api_match.group(1), "line": line, "trust": "less_trusted_or_unknown"})
             paths.append(current_path)
         if name in params and respect_parameter_overwrites and name in dependencies:
-            sources.append({"source_type": "function_parameter", "symbol": name, "line": start + 1, "trust": "unknown"})
+            matched = [item for item in framework_evidence if name in set(item.get("parameters", []))]
+            source = {
+                "source_type": "agent_tool_parameter" if matched else "function_parameter",
+                "symbol": name,
+                "line": start + 1,
+                "trust": "agent_or_external_caller" if matched else "unknown",
+            }
+            if matched:
+                primary = matched[0]
+                source.update(
+                    {
+                        "framework": primary["framework"],
+                        "entrypoint_type": primary["semantic_role"],
+                        "entrypoint_symbol": primary["symbol"],
+                        "framework_confidence": primary["confidence"],
+                        "framework_pattern": primary["matched_pattern"],
+                    }
+                )
+            sources.append(source)
             paths.append(current_path)
         for dependency in dependencies:
             trace(dependency, current_path)
@@ -328,6 +521,7 @@ def analyze_typescript(
         guards,
         paths,
         ["lexical TypeScript analysis does not prove control-flow dominance or aliasing"],
+        framework_evidence,
     )
 
 

@@ -24,6 +24,12 @@ def replace_heuristics(graph: dict, analysis, generator: str) -> dict:
     graph["edges"] = [edge for edge in graph["edges"] if edge["from"] not in removed and edge["to"] not in removed]
     operation = next(node["id"] for node in graph["nodes"] if node["type"] == "security_sensitive_operation")
     boundary = next(node["id"] for node in graph["nodes"] if node["type"] == "trust_boundary")
+    symbol_node = next(node for node in graph["nodes"] if node["type"] == "agent_or_program_symbol")
+    if analysis.framework_evidence:
+        symbol_node["agent_relevance"] = "framework_confirmed"
+        symbol_node["frameworks"] = sorted({item["framework"] for item in analysis.framework_evidence})
+        symbol_node["entrypoint_types"] = sorted({item["semantic_role"] for item in analysis.framework_evidence})
+        symbol_node["framework_evidence"] = analysis.framework_evidence
     next_id = max(int(node["id"][1:]) for node in graph["nodes"]) + 1
     source_ids = []
     for source in analysis.sources:
@@ -53,6 +59,7 @@ def replace_heuristics(graph: dict, analysis, generator: str) -> dict:
         "engine": analysis.engine,
         "operation_line": analysis.operation_line,
         "dependency_paths": analysis.dependency_paths,
+        "framework_evidence": analysis.framework_evidence,
         "limitations": analysis.limitations,
     }
     graph["views"]["security_adg"] = {
@@ -61,6 +68,7 @@ def replace_heuristics(graph: dict, analysis, generator: str) -> dict:
         "source_candidates": len(source_ids),
         "guard_candidates": len(guard_ids),
         "dependency_paths": len(analysis.dependency_paths),
+        "frameworks": sorted({item["framework"] for item in analysis.framework_evidence}),
     }
     return graph
 
@@ -73,7 +81,7 @@ def main() -> int:
     parser.add_argument("--summary", type=Path, default=DEFAULT_SUMMARY)
     parser.add_argument("--context-radius", type=int, default=20)
     parser.add_argument("--generator", default=DEFAULT_GENERATOR)
-    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4"), default="v2_1")
+    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4", "v2_5"), default="v2_1")
     parser.add_argument(
         "--showcase-dir",
         type=Path,
@@ -118,9 +126,9 @@ def main() -> int:
             finding["file"],
             finding["evidence_lines"],
             symbol=finding.get("symbol"),
-            prefer_parameter_sources=args.analysis_mode in {"v2_2", "v2_3", "v2_4"},
-            respect_parameter_overwrites=args.analysis_mode in {"v2_3", "v2_4"},
-            include_intrinsic_source_operation=args.analysis_mode != "v2_4",
+            prefer_parameter_sources=args.analysis_mode in {"v2_2", "v2_3", "v2_4", "v2_5"},
+            respect_parameter_overwrites=args.analysis_mode in {"v2_3", "v2_4", "v2_5"},
+            include_intrinsic_source_operation=args.analysis_mode not in {"v2_4", "v2_5"},
         )
         if args.analysis_mode == "v2_2":
             dataflow.engine = f"{dataflow.engine}_parameter_precedence_v2_2"
@@ -128,6 +136,8 @@ def main() -> int:
             dataflow.engine = f"{dataflow.engine}_parameter_precedence_overwrite_v2_3"
         elif args.analysis_mode == "v2_4":
             dataflow.engine = f"{dataflow.engine}_parameter_precedence_overwrite_sink_exclusion_v2_4"
+        elif args.analysis_mode == "v2_5":
+            dataflow.engine = f"{dataflow.engine}_parameter_precedence_overwrite_sink_exclusion_framework_adaptive_v2_5"
         graphs.append(replace_heuristics(graph, dataflow, args.generator))
     write_jsonl(args.output, graphs)
     engines = Counter(graph["analysis"]["engine"] for graph in graphs)
@@ -148,6 +158,11 @@ def main() -> int:
         for graph in graphs
         if graph["views"]["security_adg"]["source_candidates"] > 0
     )
+    framework_counts = Counter(
+        framework
+        for graph in graphs
+        for framework in graph["views"]["security_adg"].get("frameworks", [])
+    )
     summary = {
         "schema_version": "2.0.0-draft",
         "generator": args.generator,
@@ -160,6 +175,8 @@ def main() -> int:
         "engine_stats": engine_stats,
         "limitation_counts": dict(sorted(limitation_counts.items())),
         "source_candidate_categories": dict(sorted(source_categories.items())),
+        "framework_counts": dict(sorted(framework_counts.items())),
+        "graphs_with_framework_evidence": sum(bool(graph["analysis"].get("framework_evidence")) for graph in graphs),
         "graphs_with_def_use_source": sum(graph["views"]["security_adg"]["source_candidates"] > 0 for graph in graphs),
         "graphs_with_related_guard": sum(graph["views"]["security_adg"]["guard_candidates"] > 0 for graph in graphs),
         "graphs_with_dependency_path": sum(graph["views"]["security_adg"]["dependency_paths"] > 0 for graph in graphs),
