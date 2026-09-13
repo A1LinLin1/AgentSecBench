@@ -121,6 +121,117 @@ The same candidate can be projected into three views:
 The simplified ADG view is a local projection used for ablation; it is not an
 implementation of the AgentFlow baseline.
 
+### 4.1 Graph schema
+
+For a candidate operation `c`, Security-ADG constructs a typed evidence graph:
+
+```text
+G_c = (V, E, A)
+```
+
+where `V` is a set of typed evidence nodes, `E` is a set of typed evidence
+edges, and `A` is graph-level provenance and analysis metadata.  Each graph is
+scoped to one candidate operation and one frozen repository snapshot.
+
+The current node types are:
+
+| Node type | Meaning | Typical attributes |
+|---|---|---|
+| `agent_or_program_symbol` | containing function, tool, handler, adapter, component, or program symbol | symbol name, file, line, framework evidence |
+| `security_sensitive_operation` | the matched operation or effectful call | operation category, API, line, detector |
+| `external_effect` | abstract effect caused or prepared by the operation | process, filesystem, network, browser, package, service |
+| `input_source` | local evidence of an input that may influence the operation | source type, symbol, trust, framework |
+| `trust_boundary` | potential crossing from less-trusted or external input into local/system effect | boundary kind, trust assumption |
+| `guard_candidate` | validation or defensive context relevant to the operation | guard type, confidence, effectiveness status |
+
+The current edge types are:
+
+| Edge type | Meaning |
+|---|---|
+| `contains` | symbol or component contains the operation |
+| `may_cause` | operation may cause the external effect |
+| `may_data_depend_on` | source may influence the operation |
+| `may_cross` | source may cross a trust boundary |
+| `may_guard` | guard candidate may constrain the operation |
+
+Security-ADG deliberately uses `may_*` relations.  They are evidence
+relations, not formal proof of exploitability or end-to-end reachability.
+
+### 4.2 Candidate-to-graph construction
+
+The graph construction pipeline has five steps:
+
+1. **Anchor the candidate.**  The static scanner provides repository identity,
+   frozen commit, file path, evidence line, operation category, and local code
+   context.
+2. **Resolve the local scope.**  The analyzer identifies the enclosing
+   function, class, module, tool declaration, or framework adapter associated
+   with the operation.
+3. **Extract local dependency evidence.**  The analyzer searches for local
+   parameters, assignments, reads, request fields, tool parameters, model
+   outputs, repository arguments, package contents, or other source-like values
+   that may reach the candidate operation.
+4. **Extract guard evidence.**  The analyzer records nearby validation,
+   escaping, allowlists, argv-list construction, path checks, authentication,
+   size limits, sandbox restrictions, and other defensive context.
+5. **Emit graph views.**  The candidate is emitted as a full Security-ADG and
+   can also be projected into sink-only and simplified ADG views for ablation.
+
+The construction is local and conservative.  Missing dependency evidence does
+not prove absence of dependency; it means the local analyzer did not preserve a
+supporting path under the current rules.
+
+### 4.3 Pseudocode
+
+```text
+Algorithm 1: Security-ADG construction
+Input:
+  R: frozen repository snapshot
+  C: static candidate records
+  F: framework adapter registry
+Output:
+  G: Security-ADG graphs
+
+for each candidate c in C:
+    source_file <- load_frozen_source(R, c.file, c.commit)
+    op <- anchor_operation(source_file, c.evidence_lines, c.symbol)
+    scope <- resolve_enclosing_scope(source_file, op, c.symbol)
+
+    framework_evidence <- F.detect(source_file, scope, op.line)
+    sources <- extract_input_sources(source_file, scope, op, framework_evidence)
+    guards <- extract_guard_candidates(source_file, scope, op)
+    effect <- classify_external_effect(c.operation_category, op)
+    boundary <- infer_trust_boundary(sources, effect, framework_evidence)
+
+    graph <- new_graph(c.provenance)
+    graph.add(symbol_node(scope, framework_evidence))
+    graph.add(operation_node(op, c.operation_category))
+    graph.add(effect_node(effect))
+    graph.add(boundary_node(boundary))
+
+    graph.add_edge(symbol, operation, "contains")
+    graph.add_edge(operation, effect, "may_cause")
+
+    for each source in sources:
+        graph.add(input_source_node(source))
+        graph.add_edge(source, operation, "may_data_depend_on")
+        graph.add_edge(source, boundary, "may_cross")
+
+    for each guard in guards:
+        graph.add(guard_candidate_node(guard))
+        graph.add_edge(guard, operation, "may_guard")
+
+    graph.views <- project_views(graph)
+    G.add(graph)
+
+return G
+```
+
+`project_views` creates three representations over the same candidate:
+sink-only, simplified ADG, and full Security-ADG.  The ablation therefore tests
+representational context preservation while keeping the underlying candidate
+constant.
+
 ## 5. Semantic Dependency Analysis
 
 Security-ADG uses local, label-independent dependency analysis. The current
@@ -150,6 +261,97 @@ vulnerability analysis:
 
 This makes the method more informative than sink matching while keeping its
 claim boundary honest.
+
+### 5.1 Python analysis
+
+For Python, the analyzer parses the file with `ast` and resolves the smallest
+call on the candidate evidence line.  If the static match lands on a tool
+decorator rather than the effectful call inside the tool body, the analyzer may
+expand to the decorated function body and choose a call that consumes a tool
+parameter.  This preserves the common pattern:
+
+```text
+@mcp.tool()
+def run(command: str):
+    subprocess.run(command, ...)
+```
+
+The analyzer records:
+
+- enclosing function or module scope;
+- function parameters and overwritten parameter definitions;
+- assignments that define symbols later used by the operation;
+- source-like calls such as environment reads, request reads, JSON reads, file
+  reads, `input`, receive functions, or framework tool parameters;
+- framework evidence from the adapter layer; and
+- guard candidates before or near the operation.
+
+When a framework-confirmed tool parameter reaches the operation, the input
+source is typed as `agent_tool_parameter` and its trust is recorded as
+`agent_or_external_caller`.  Ordinary function parameters are retained with
+`unknown` trust unless framework or boundary evidence upgrades them.
+
+### 5.2 TypeScript and JavaScript analysis
+
+For TypeScript/JavaScript, the current analyzer uses syntax-aware lexical
+patterns rather than a full type checker.  It detects local function shapes,
+assignments, `for` bindings, React state patterns, conditional guards, and
+selected framework registration idioms.  This layer is intentionally described
+as lexical evidence.  It is useful for preserving local review context, but it
+does not prove interprocedural soundness, alias completeness, or control-flow
+dominance.
+
+### 5.3 Framework-adaptive normalization
+
+Agent frameworks expose tools through heterogeneous syntax.  To keep the graph
+schema stable, Security-ADG uses a framework-adaptive normalization layer before
+graph construction.  The adapter registry maps framework-specific declarations
+into a common semantic record:
+
+```json
+{
+  "framework": "LangChain",
+  "semantic_role": "tool_definition",
+  "symbol": "run_shell",
+  "parameters": ["command"],
+  "confidence": "high"
+}
+```
+
+The current registry recognizes:
+
+- MCP / FastMCP: `@mcp.tool`, `@server.tool`, `registerTool`, `server.tool`;
+- LangChain: `@tool`, `Tool(...)`, `StructuredTool.from_function(...)`;
+- CrewAI: `BaseTool` subclasses with `_run(...)` / `run(...)`;
+- AutoGen: `register_for_llm(...)` and `register_for_execution(...)`;
+- OpenAI Agents SDK: `@function_tool`;
+- Semantic Kernel: `@kernel_function`;
+- LlamaIndex: `FunctionTool.from_defaults(...)` and related factories.
+
+Framework adapters do not directly create vulnerability claims.  They only
+upgrade agent relevance and source typing, allowing the graph builder to treat
+confirmed tool parameters as possible agent-facing input sources.  Adding a new
+framework should require an adapter pattern and fixture tests, not a graph
+schema rewrite.
+
+### 5.4 Dependency-path claim boundary
+
+A dependency path in Security-ADG means:
+
+```text
+local evidence suggests source S may influence operation O
+```
+
+It does not mean:
+
+```text
+S definitely reaches O on all executions
+S is attacker-controlled in every deployment
+O is exploitable
+```
+
+This distinction is essential for agent software, where many dangerous
+operations are intentional local capabilities.
 
 ## 6. Guard-aware Interpretation
 
@@ -181,7 +383,92 @@ This distinction lets Security-ADG support three review outcomes:
 - downgraded behavior where the operation is sensitive but the construction
   reduces or changes the security concern.
 
-## 7. Baselines and Normalization
+### 6.1 Guard taxonomy
+
+The current method records guard evidence in broad families:
+
+| Guard family | Examples | Interpretation |
+|---|---|---|
+| command construction | argv-list invocation, fixed executable, fixed subcommands | may reduce shell-injection concern |
+| syntax-only validation | `compile(..., "exec")` without `exec`/`eval` | code is parsed, not locally executed |
+| sandboxing | restricted builtins, AST validation, allowlisted helpers | local execution semantics remain but are constrained |
+| path restrictions | normalization, traversal rejection, symlink checks | may reduce filesystem impact |
+| schema/allowlist | enum validation, JSON schema, permitted operation names | may constrain tool behavior |
+| authentication/exposure | localhost binding, auth checks, documented operator setup | may affect trust boundary |
+| staged side effects | temp files, atomic writes, rollback | may constrain integrity impact |
+
+Guard visibility is not guard proof.  The graph records that relevant context
+exists; vulnerability disposition still requires boundary and impact evidence.
+
+### 6.2 Examples of guard-aware downgrades
+
+Recent reproduction-confirmed cases illustrate why guard-aware representation
+matters:
+
+- A `compile(..., "exec")` site used only for syntax validation is not treated
+  as local code execution unless followed by `exec` or `eval`.
+- A GitHub CLI helper using fixed argv-list commands and `query=@-` stdin is
+  not treated as shell command injection.
+- A local Streamlit launcher with fixed argv-list arguments is separated from a
+  deeper repository-clone path in the same project.
+- A sandboxed expression evaluator remains security-relevant but is recorded
+  with its AST validation, empty builtins, allowlists, and timeout behavior.
+
+These are negative-control cases, not failures.  They show that the method
+retains security-relevant behavior while preventing sink-only overclaiming.
+
+## 7. Disposition Policy
+
+Security-ADG is an evidence graph, not a vulnerability classifier.  The paper
+therefore uses a separate disposition policy for reproduction-confirmed cases.
+
+The disposition policy has three categories:
+
+| Disposition | Required evidence | Paper use |
+|---|---|---|
+| `vulnerability_gt` | reproduced behavior plus confirmed impact and trust/auth boundary | vulnerability-level evidence; not an assigned CVE unless a CNA or maintainer assigns one |
+| `pending_upgrade_or_disclosure` | reproduced behavior with promising boundary/impact evidence but missing confirmation | follow-up candidate, not public vulnerability claim |
+| `guarded_not_vulnerability` | reproduced behavior plus explicit guard, intended local use, or unconfirmed boundary | negative-control / semantic-disambiguation evidence |
+
+The current snapshot contains 22 reproduction-confirmed behavior cases:
+
+```text
+1 vulnerability_gt
+1 pending_upgrade_or_disclosure
+20 guarded_not_vulnerability
+```
+
+No single-reviewer labels or model labels are used to construct this ground
+truth.
+
+Pseudocode:
+
+```text
+Algorithm 2: Reproduction-ground-truth disposition
+Input:
+  B: reproduction-confirmed behavior records
+  Q: vulnerability-upgrade queue
+Output:
+  D: disposition matrix
+
+for each record b in B:
+    if b.vulnerability_ground_truth is true:
+        D[b] <- vulnerability_gt
+    else if b.id in Q:
+        D[b] <- pending_upgrade_or_disclosure
+    else if b.not_a_vulnerability_claim is true:
+        D[b] <- guarded_not_vulnerability
+    else:
+        D[b] <- pending_upgrade_or_disclosure
+
+return D
+```
+
+The fallback to `pending_upgrade_or_disclosure` is conservative: an
+unclassified reproduction record is never silently counted as safe or as a
+vulnerability.
+
+## 8. Baselines and Normalization
 
 We compare Security-ADG against predefined-sink baselines under a fixed matching
 policy.
@@ -204,13 +491,13 @@ ambiguous mappings are recorded rather than manually assigned.
 All baseline normalization is fixed before reading held-out gold labels. No
 manual per-item matching or label-aware tolerance adjustment is allowed.
 
-## 8. Evaluation Protocol
+## 9. Evaluation Protocol
 
 The evaluation protocol separates development evidence, model-assisted
 diagnostics, independent labels, held-out predictions, and local reproduction
 evidence.
 
-### 8.1 Candidate-level annotation
+### 9.1 Candidate-level annotation
 
 The pilot candidate study samples 150 tasks from 531 candidates using
 deterministic stratification. The intended primary human labels are:
@@ -224,21 +511,21 @@ Uncertain and unknown values are excluded from field-specific complete-case
 primary analysis and counted separately. Weakness and vulnerability fields are
 secondary because they require deployment and threat-model context.
 
-### 8.2 Model panel
+### 9.2 Model panel
 
 A five-model panel can be used for scalable pre-annotation, disagreement
 analysis, and prioritization. It is not human ground truth. Model votes,
 model rationales, reviewer03 output, Security-ADG predictions, and baseline
 outputs must not be shown to blinded annotators.
 
-### 8.3 Held-out operation inventory
+### 9.3 Held-out operation inventory
 
 The held-out recall protocol uses an independently frozen operation inventory.
 Predictions from Security-ADG, sink-only, Semgrep, and CodeQL are joined to this
 inventory only through the fixed matching policy. Final recall and F1 require
 independent review and adjudication of the inventory labels.
 
-### 8.4 Local reproduction evidence
+### 9.4 Local reproduction evidence
 
 Local reproduction evidence is used for qualitative case studies and sanity
 checks. A reproduction-confirmed record means that the recorded local or
@@ -250,12 +537,16 @@ Recent local/source evidence is summarized into:
 
 - a held-out reproduction case matrix;
 - a guard-aware representation ablation;
+- a reproduction-confirmed GT file;
+- a vulnerability-upgrade queue;
+- a vulnerability disposition matrix;
 - a paper results snapshot; and
 - CSV/LaTeX paper table exports.
 
-These artifacts help write RQ3 and RQ4 but are not final accuracy metrics.
+These artifacts support the current RQ2--RQ4 claims, but they are not final
+population-level accuracy metrics.
 
-## 9. Leakage Prevention
+## 10. Leakage Prevention
 
 The main leakage risks are method tuning on held-out labels, model-assisted
 labels being mistaken for human gold, and local reproduction evidence being
@@ -277,7 +568,7 @@ The expected held-out validation state remains `PASS_PENDING_LABELS` while the
 second blinded reviewer file is missing. This is a valid interim state and must
 not be described as final evaluation.
 
-## 10. Claims Supported by the Current Method Artifacts
+## 11. Claims Supported by the Current Method Artifacts
 
 The current method artifacts support the following claims:
 
@@ -289,8 +580,10 @@ The current method artifacts support the following claims:
   and guard context in a single candidate-level graph.
 - Guard-aware representation preserves defensive context omitted by sink-only
   and simplified ADG views.
-- Local/source reproduction evidence can support qualitative case studies of
-  real-world agent behavior.
+- Local/source reproduction evidence supports a conservative
+  reproduction-confirmed behavior ground truth.
+- The current disposition matrix contains 1 vulnerability-GT case, 1 pending
+  disclosure/upgrade candidate, and 20 guarded not-vulnerability cases.
 
 The current method artifacts do not by themselves support:
 
@@ -301,7 +594,7 @@ The current method artifacts do not by themselves support:
 - exploitability claims without deployment and maintainer-confirmed security
   boundaries.
 
-## 11. Reproducibility Commands
+## 12. Reproducibility Commands
 
 Run from the repository root.
 
@@ -310,9 +603,13 @@ python scripts\audit_corpus_snapshot.py
 python scripts\validate_heldout_evaluation.py --allow-pending-labels
 ```
 
-Refresh local reproduction-derived paper artifacts:
+Refresh reproduction-ground-truth and paper artifacts:
 
 ```powershell
+python scripts\build_reproduction_ground_truth.py
+python scripts\build_vulnerability_gt_upgrade_queue.py
+python scripts\build_vulnerability_gt_disposition_matrix.py
+python scripts\evaluate_reproduction_gt_coverage.py
 python scripts\summarize_heldout_reproduction_evidence.py
 python scripts\build_heldout_reproduction_case_matrix.py
 python scripts\build_guard_ablation_table.py
@@ -328,6 +625,10 @@ python -m unittest `
   tests/test_security_adg_showcase.py `
   tests/test_heldout_reproduction_case_matrix.py `
   tests/test_guard_ablation_table.py `
+  tests/test_build_reproduction_ground_truth.py `
+  tests/test_build_vulnerability_gt_upgrade_queue.py `
+  tests/test_vulnerability_gt_disposition_matrix.py `
+  tests/test_reproduction_gt_coverage.py `
   tests/test_paper_results_snapshot.py `
   tests/test_export_paper_tables.py
 ```

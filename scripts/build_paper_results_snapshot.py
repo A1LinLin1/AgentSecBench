@@ -17,6 +17,9 @@ from typing import Any
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_MATRIX = BASE_DIR / "analysis" / "reproduction" / "case_matrix" / "heldout_reproduction_case_matrix.json"
 DEFAULT_ABLATION = BASE_DIR / "analysis" / "reproduction" / "guard_ablation" / "guard_ablation_summary.json"
+DEFAULT_DISPOSITION_SUMMARY = (
+    BASE_DIR / "analysis" / "ground_truth" / "disposition" / "vulnerability_gt_disposition_summary.json"
+)
 DEFAULT_OUTPUT_DIR = BASE_DIR / "analysis" / "paper_results"
 
 
@@ -50,7 +53,11 @@ def compact_path(path: str, max_parts: int = 5) -> str:
     return " -> ".join([*head, "...", *tail])
 
 
-def build_snapshot(matrix: dict[str, Any], ablation: dict[str, Any]) -> dict[str, Any]:
+def build_snapshot(
+    matrix: dict[str, Any],
+    ablation: dict[str, Any],
+    disposition_summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     rows = matrix.get("rows", [])
     view_rows = ablation.get("view_rows", [])
     by_view = {row["view"]: row for row in view_rows}
@@ -77,6 +84,7 @@ def build_snapshot(matrix: dict[str, Any], ablation: dict[str, Any]) -> dict[str
             "sink_only_guard_visible": by_view.get("sink_only", {}).get("guard_visible", 0),
             "plain_adg_guard_visible": by_view.get("plain_adg", {}).get("guard_visible", 0),
             "security_adg_guard_visible": by_view.get("security_adg", {}).get("guard_visible", 0),
+            "vulnerability_disposition": disposition_summary or {},
         },
         "rq3_case_rows": [
             {
@@ -126,6 +134,27 @@ def write_overview(snapshot: dict[str, Any], path: Path) -> None:
         f"- Repositories: {', '.join(f'{k}={v}' for k, v in h['repositories'].items())}",
         f"- Ecosystems: {', '.join(f'{k}={v}' for k, v in h['ecosystems'].items())}",
         "",
+        "## Vulnerability ground-truth disposition",
+        "",
+    ]
+    disposition = h.get("vulnerability_disposition") or {}
+    disposition_counts = disposition.get("disposition_counts", {})
+    if disposition:
+        lines.extend(
+            [
+                f"- Reproduction-confirmed behavior GT: {disposition.get('case_count', 0)}",
+                f"- Vulnerability GT: {disposition_counts.get('vulnerability_gt', 0)}",
+                f"- Pending upgrade / disclosure candidates: {disposition_counts.get('pending_upgrade_or_disclosure', 0)}",
+                f"- Guarded not-vulnerability / negative-control cases: {disposition_counts.get('guarded_not_vulnerability', 0)}",
+                "- Human-reviewed sample used: false",
+                "- Model labels used: false",
+            ]
+        )
+    else:
+        lines.append("- Not available in this snapshot.")
+    lines.extend(
+        [
+            "",
         "## RQ4 representation headline",
         "",
         f"- Sink-only context completeness: {pct(h['sink_only_context_completeness'])}",
@@ -143,6 +172,7 @@ def write_overview(snapshot: dict[str, Any], path: Path) -> None:
         ),
         "",
     ]
+    )
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -275,6 +305,7 @@ def write_commands(args: argparse.Namespace, outputs: dict[str, Path], path: Pat
         "",
         f"- Case matrix: `{display_path(args.matrix)}`",
         f"- Guard ablation: `{display_path(args.ablation)}`",
+        f"- Vulnerability GT disposition summary: `{display_path(args.disposition_summary)}`",
         "",
         "## Generated files",
         "",
@@ -288,12 +319,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
     parser.add_argument("--ablation", type=Path, default=DEFAULT_ABLATION)
+    parser.add_argument("--disposition-summary", type=Path, default=DEFAULT_DISPOSITION_SUMMARY)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
 
     matrix = read_json(args.matrix)
     ablation = read_json(args.ablation)
-    snapshot = build_snapshot(matrix, ablation)
+    disposition_summary = read_json(args.disposition_summary) if args.disposition_summary.exists() else None
+    snapshot = build_snapshot(matrix, ablation, disposition_summary)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "snapshot_json": args.output_dir / "paper_results_snapshot.json",
@@ -315,6 +348,10 @@ def main() -> int:
                 "status": "complete",
                 "cases": snapshot["headline_numbers"]["case_count"],
                 "guarded_cases": snapshot["headline_numbers"]["guarded_cases"],
+                "vulnerability_disposition": snapshot["headline_numbers"]["vulnerability_disposition"].get(
+                    "disposition_counts",
+                    {},
+                ),
                 "security_adg_context_completeness": snapshot["headline_numbers"]["security_adg_context_completeness"],
                 "outputs": {name: display_path(path) for name, path in outputs.items()},
             },
