@@ -92,8 +92,24 @@ def frozen_files(repo_path: Path, commit: str, relative_paths: set[str]) -> dict
     ]
     result = subprocess.run(command, capture_output=True, check=False)
     if result.returncode:
-        error = result.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(f"git archive failed for {repo_path}: {error}")
+        # Some frozen trees include a Windows-incompatible non-source path
+        # (e.g. an NTFS Zone.Identifier stream).  Archive then fails before
+        # it can return requested source blobs.  Read only the explicit,
+        # already-selected source paths instead; nothing is checked out.
+        loaded = {}
+        failures = []
+        for relative_path in relative_paths:
+            try:
+                loaded[relative_path.replace("\\", "/")] = frozen_file(repo_path, commit, relative_path)
+            except RuntimeError as exc:
+                failures.append(str(exc))
+        if failures:
+            error = result.stderr.decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"git archive failed for {repo_path}: {error}; "
+                f"fallback git show failed: {failures[:2]}"
+            )
+        return loaded
     wanted = {path.replace("\\", "/") for path in relative_paths}
     loaded: dict[str, str] = {}
     with tarfile.open(fileobj=io.BytesIO(result.stdout), mode="r:") as archive:

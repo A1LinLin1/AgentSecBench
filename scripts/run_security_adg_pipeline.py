@@ -22,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=BASE_DIR / "dataset" / "corpus_manifest.csv")
     parser.add_argument("--scope", choices=("all_corpus", "development", "held_out_evaluation", "mutation_evaluation"), default="all_corpus")
-    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4"), default="v2_4")
+    parser.add_argument("--analysis-mode", choices=("v2_1", "v2_2", "v2_3", "v2_4", "v2_5"), default="v2_5")
     parser.add_argument("--output-root", type=Path, default=BASE_DIR / "artifacts" / "security_adg_pipeline")
     parser.add_argument("--skip-sample-id", action="append", default=[])
     parser.add_argument("--max-review-queue", type=int, default=500)
