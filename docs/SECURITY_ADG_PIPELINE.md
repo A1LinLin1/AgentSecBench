@@ -93,9 +93,20 @@ The output root contains:
 - `security_adg_validation.json`: structural and split-isolation checks.
 - `all_corpus_summary.json` and `review_queue.jsonl`: descriptive analysis and
   deterministic review priority for the all-corpus scope.
+- `corpus_wide_report/`: JSON, CSV, and Markdown characterization tables plus
+  version-checked scalability measurements. Candidate/evidence counts in this
+  report are not vulnerability counts. Runtime stages are combined only when
+  their recorded candidate populations match.
 - `showcase/index.html` and `showcase/manifest.json`: portable visual evidence
   view and its selected-case provenance.
 - `pipeline_manifest.json`: the command configuration and artifact locations.
+
+The default run records wall-clock time without memory-profiler overhead. For a
+separate Python-allocation peak measurement, add `--profile-memory`. This uses
+`tracemalloc`; it is not process RSS, and its report explicitly marks profiling
+overhead as included. Do not mix runtime stages from different candidate
+populations (for example, the frozen 531-candidate pilot and a later scanner
+version); the report generator rejects such stages as an end-to-end total.
 
 To make a focused case-study page, add one or more exact candidate IDs:
 

@@ -34,6 +34,8 @@ jobs:
           tests/test_guard_ablation_table.py
           tests/test_paper_results_snapshot.py
           tests/test_export_paper_tables.py
+          tests/test_corpus_wide_security_adg_report.py
+          tests/test_runtime_metrics.py
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py

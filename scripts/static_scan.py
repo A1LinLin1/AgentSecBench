@@ -16,10 +16,14 @@ import re
 import subprocess
 import sys
 import tarfile
+import time
+import tracemalloc
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+
+from runtime_metrics import process_peak_rss_bytes
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -344,6 +348,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-sample-id", action="append", default=[], help="Explicitly skip a corpus row that Git cannot archive on this platform.")
     parser.add_argument("--continue-on-error", action="store_true", help="Record repository scan failures and continue the remaining frozen repositories.")
     parser.add_argument(
+        "--profile-memory",
+        action="store_true",
+        help="Measure Python allocation peak with tracemalloc; this adds profiling overhead to wall time.",
+    )
+    parser.add_argument(
         "--granularity",
         choices=("symbol", "line"),
         default="symbol",
@@ -358,11 +367,16 @@ def main() -> int:
         manifest_rows = list(csv.DictReader(handle))
 
     scanned_at = datetime.now(timezone.utc).isoformat()
+    run_started = time.perf_counter()
+    if args.profile_memory:
+        tracemalloc.start()
     findings: list[dict] = []
     skipped: list[dict] = []
     failures: list[dict] = []
+    repository_metrics: list[dict] = []
     skipped_ids = set(args.skip_sample_id)
     for index, row in enumerate(manifest_rows, start=1):
+        repository_started = time.perf_counter()
         if row["sample_id"] in skipped_ids:
             print(f"[{index}/{len(manifest_rows)}] Skipping {row['repo']} (explicit platform exclusion)", flush=True)
             skipped.append({
@@ -370,10 +384,25 @@ def main() -> int:
                 "repo": row["repo"],
                 "reason": "explicit_platform_incompatible_git_archive",
             })
+            repository_metrics.append({
+                "sample_id": row["sample_id"],
+                "repo": row["repo"],
+                "status": "skipped",
+                "candidate_count": 0,
+                "wall_seconds": round(time.perf_counter() - repository_started, 6),
+            })
             continue
         print(f"[{index}/{len(manifest_rows)}] Scanning {row['repo']}", flush=True)
         try:
-            findings.extend(scan_repository(row, scanned_at, args.granularity))
+            repository_findings = scan_repository(row, scanned_at, args.granularity)
+            findings.extend(repository_findings)
+            repository_metrics.append({
+                "sample_id": row["sample_id"],
+                "repo": row["repo"],
+                "status": "completed",
+                "candidate_count": len(repository_findings),
+                "wall_seconds": round(time.perf_counter() - repository_started, 6),
+            })
         except RuntimeError as error:
             if not args.continue_on_error:
                 raise
@@ -383,6 +412,13 @@ def main() -> int:
                 "repo": row["repo"],
                 "reason": str(error),
             })
+            repository_metrics.append({
+                "sample_id": row["sample_id"],
+                "repo": row["repo"],
+                "status": "failed",
+                "candidate_count": 0,
+                "wall_seconds": round(time.perf_counter() - repository_started, 6),
+            })
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(args.output.suffix + ".tmp")
@@ -391,6 +427,10 @@ def main() -> int:
             handle.write(json.dumps(finding, ensure_ascii=False, sort_keys=True) + "\n")
     temporary.replace(args.output)
     write_summary(findings, manifest_rows, args.summary)
+    peak_allocated_bytes = None
+    if args.profile_memory:
+        _, peak_allocated_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
     run_manifest = {
         "manifest": str(args.manifest),
         "scanned_at_utc": scanned_at,
@@ -401,6 +441,15 @@ def main() -> int:
         "candidate_count": len(findings),
         "candidate_granularity": args.granularity,
         "frozen_corpus_modified": False,
+        "execution_metrics": {
+            "wall_seconds": round(time.perf_counter() - run_started, 6),
+            "process_peak_rss_bytes": process_peak_rss_bytes(),
+            "python_peak_allocated_bytes": peak_allocated_bytes,
+            "memory_metric_scope": "Python allocations in this process; not total RSS",
+            "memory_profiling_enabled": args.profile_memory,
+            "profiling_overhead_included": args.profile_memory,
+            "per_repository": repository_metrics,
+        },
     }
     args.output.with_suffix(".run.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

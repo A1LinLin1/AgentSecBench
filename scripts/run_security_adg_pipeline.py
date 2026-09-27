@@ -28,6 +28,11 @@ def main() -> int:
     parser.add_argument("--max-review-queue", type=int, default=500)
     parser.add_argument("--showcase-count", type=int, default=12)
     parser.add_argument("--showcase-candidate-id", action="append", default=[])
+    parser.add_argument(
+        "--profile-memory",
+        action="store_true",
+        help="Enable tracemalloc in scan and graph stages; use a separate run for unbiased wall-time measurements.",
+    )
     args = parser.parse_args()
 
     root = args.output_root
@@ -42,20 +47,39 @@ def main() -> int:
     scan_command = [sys.executable, str(BASE_DIR / "scripts" / "static_scan.py"), "--manifest", str(args.manifest), "--output", str(findings), "--summary", str(scan_summary)]
     for sample_id in args.skip_sample_id:
         scan_command.extend(["--skip-sample-id", sample_id])
+    if args.profile_memory:
+        scan_command.append("--profile-memory")
     run(scan_command)
     graph_command = [sys.executable, str(BASE_DIR / "scripts" / "generate_security_adg_v2.py"), "--manifest", str(args.manifest), "--findings", str(findings), "--output", str(graphs), "--summary", str(graph_summary), "--split", args.scope, "--analysis-mode", args.analysis_mode, "--showcase-dir", str(showcase), "--showcase-max-graphs", str(args.showcase_count)]
     for candidate_id in args.showcase_candidate_id:
         graph_command.extend(["--showcase-candidate-id", candidate_id])
+    if args.profile_memory:
+        graph_command.append("--profile-memory")
     run(graph_command)
     result = subprocess.run([sys.executable, str(BASE_DIR / "scripts" / "validate_security_adg.py"), "--input", str(graphs), "--expected-split", args.scope], check=True, capture_output=True, text=True)
     validation.write_text(result.stdout, encoding="utf-8")
     if args.scope == "all_corpus":
         run([sys.executable, str(BASE_DIR / "scripts" / "analyze_all_corpus_security_adg.py"), "--manifest", str(args.manifest), "--graphs", str(graphs), "--summary", str(root / "all_corpus_summary.json"), "--queue", str(root / "review_queue.jsonl"), "--max-queue", str(args.max_review_queue)])
+        run([
+            sys.executable,
+            str(BASE_DIR / "scripts" / "build_corpus_wide_security_adg_report.py"),
+            "--manifest", str(args.manifest),
+            "--graphs", str(graphs),
+            "--graph-summary", str(graph_summary),
+            "--scan-run", str(findings.with_suffix(".run.json")),
+            "--output-dir", str(root / "corpus_wide_report"),
+        ])
     record = {
         "schema_version": "1.0", "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "scope": args.scope, "analysis_mode": args.analysis_mode, "manifest": str(args.manifest),
         "skipped_sample_ids": args.skip_sample_id,
-        "artifacts": {"findings": str(findings), "graphs": str(graphs), "validation": str(validation), "showcase": str(showcase / "index.html")},
+        "artifacts": {
+            "findings": str(findings),
+            "graphs": str(graphs),
+            "validation": str(validation),
+            "showcase": str(showcase / "index.html"),
+            "corpus_wide_report": str(root / "corpus_wide_report" / "corpus_wide_security_adg_report.json") if args.scope == "all_corpus" else None,
+        },
     }
     (root / "pipeline_manifest.json").write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(record, ensure_ascii=False, indent=2))

@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
+import tracemalloc
 from collections import Counter
 from pathlib import Path
 
 from generate_security_adg import BASE_DIR, frozen_files, make_graph, read_jsonl, write_jsonl
 from generate_security_adg_showcase import build_showcase
 from security_adg_dataflow import analyze
+from runtime_metrics import process_peak_rss_bytes
 
 
 DEFAULT_OUTPUT = BASE_DIR / "graphs" / "security_adg" / "development_v2.jsonl"
@@ -90,12 +93,20 @@ def main() -> int:
     parser.add_argument("--showcase-max-graphs", type=int, default=12)
     parser.add_argument("--showcase-candidate-id", action="append", default=[])
     parser.add_argument(
+        "--profile-memory",
+        action="store_true",
+        help="Measure Python allocation peak with tracemalloc; this adds profiling overhead to wall time.",
+    )
+    parser.add_argument(
         "--split",
         choices=("development", "held_out_evaluation", "mutation_evaluation", "all_corpus"),
         default="development",
         help="all_corpus is an unlabeled descriptive run over every manifest row.",
     )
     args = parser.parse_args()
+    run_started = time.perf_counter()
+    if args.profile_memory:
+        tracemalloc.start()
     with args.manifest.open("r", encoding="utf-8-sig", newline="") as handle:
         manifest = list(csv.DictReader(handle))
     by_repo = {row["repo"]: row for row in manifest}
@@ -108,9 +119,15 @@ def main() -> int:
         requested_files.setdefault(finding["repo"], set()).add(finding["file"])
     cache: dict[tuple[str, str], str] = {}
     repository_cache: dict[str, dict[str, str]] = {}
+    repository_metrics: dict[str, dict] = {}
     graphs = []
     for finding in findings:
+        graph_started = time.perf_counter()
         row = by_repo[finding["repo"]]
+        metric = repository_metrics.setdefault(
+            finding["repo"],
+            {"sample_id": row["sample_id"], "repo": finding["repo"], "graph_count": 0, "wall_seconds": 0.0},
+        )
         key = (finding["repo"], finding["file"])
         if key not in cache:
             if finding["repo"] not in repository_cache:
@@ -139,6 +156,8 @@ def main() -> int:
         elif args.analysis_mode == "v2_5":
             dataflow.engine = f"{dataflow.engine}_parameter_precedence_overwrite_sink_exclusion_framework_adaptive_v2_5"
         graphs.append(replace_heuristics(graph, dataflow, args.generator))
+        metric["graph_count"] += 1
+        metric["wall_seconds"] += time.perf_counter() - graph_started
     write_jsonl(args.output, graphs)
     engines = Counter(graph["analysis"]["engine"] for graph in graphs)
     engine_stats = {}
@@ -163,6 +182,10 @@ def main() -> int:
         for graph in graphs
         for framework in graph["views"]["security_adg"].get("frameworks", [])
     )
+    peak_allocated_bytes = None
+    if args.profile_memory:
+        _, peak_allocated_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
     summary = {
         "schema_version": "2.0.0-draft",
         "generator": args.generator,
@@ -184,6 +207,21 @@ def main() -> int:
         "label_inputs_used": False,
         "held_out_used": args.split == "held_out_evaluation",
         "held_out_labels_used": False,
+        "execution_metrics": {
+            "wall_seconds": round(time.perf_counter() - run_started, 6),
+            "process_peak_rss_bytes": process_peak_rss_bytes(),
+            "python_peak_allocated_bytes": peak_allocated_bytes,
+            "memory_metric_scope": "Python allocations in this process; not total RSS",
+            "memory_profiling_enabled": args.profile_memory,
+            "profiling_overhead_included": args.profile_memory,
+            "per_repository": [
+                {
+                    **metric,
+                    "wall_seconds": round(metric["wall_seconds"], 6),
+                }
+                for _, metric in sorted(repository_metrics.items())
+            ],
+        },
     }
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     args.summary.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
