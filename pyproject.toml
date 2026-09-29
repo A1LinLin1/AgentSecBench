@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentsecbench"
+version = "0.1.0"
+description = "Security-aware static analysis and dependency graphs for LLM-agent software"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+keywords = ["llm-agent", "security", "static-analysis", "sarif", "dependency-graph"]
+authors = [
+  { name = "AgentSecBench contributors" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "License :: OSI Approved :: Apache Software License",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/A1LinLin1/AgentSecBench"
+Repository = "https://github.com/A1LinLin1/AgentSecBench"
+Issues = "https://github.com/A1LinLin1/AgentSecBench/issues"
+
+[project.scripts]
+agentsecbench = "agentsecbench.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+license-files = ["LICENSE", "NOTICE"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agentsecbench = ["py.typed", "report/*.html", "schemas/*.json"]

@@ -1,0 +1,102 @@
+name: AgentSecBench scan
+description: Read-only static analysis and Security-ADG reporting for LLM-agent repositories
+author: AgentSecBench contributors
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Repository path to analyze
+    required: false
+    default: .
+  output:
+    description: Directory for findings, SARIF, graphs, and the HTML report
+    required: false
+    default: agentsecbench-results
+  config:
+    description: Optional AgentSecBench TOML configuration path
+    required: false
+    default: ""
+  baseline:
+    description: Optional stable-fingerprint baseline JSON path
+    required: false
+    default: ""
+  suppressions:
+    description: Optional exact-fingerprint suppression TOML path
+    required: false
+    default: ""
+  block-categories:
+    description: Comma-separated categories allowed to block CI; empty means all
+    required: false
+    default: ""
+  minimum-confidence:
+    description: Minimum blocking confidence (medium or high)
+    required: false
+    default: high
+  fail-on-new:
+    description: Fail with exit code 4 when a new unsuppressed candidate matches policy
+    required: false
+    default: "true"
+
+outputs:
+  results:
+    description: Analysis output directory
+    value: ${{ steps.paths.outputs.results }}
+  report:
+    description: Self-contained HTML review report
+    value: ${{ steps.paths.outputs.report }}
+  sarif:
+    description: SARIF 2.1.0 result file
+    value: ${{ steps.paths.outputs.sarif }}
+  policy:
+    description: Policy result file when baseline, suppressions, or fail-on-new is enabled
+    value: ${{ steps.paths.outputs.policy }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install AgentSecBench
+      shell: bash
+      run: python -m pip install --disable-pip-version-check --no-deps "${{ github.action_path }}"
+    - name: Analyze repository
+      shell: bash
+      env:
+        ASB_PATH: ${{ inputs.path }}
+        ASB_OUTPUT: ${{ inputs.output }}
+        ASB_CONFIG: ${{ inputs.config }}
+        ASB_BASELINE: ${{ inputs.baseline }}
+        ASB_SUPPRESSIONS: ${{ inputs.suppressions }}
+        ASB_BLOCK_CATEGORIES: ${{ inputs.block-categories }}
+        ASB_MINIMUM_CONFIDENCE: ${{ inputs.minimum-confidence }}
+        ASB_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+      run: |
+        args=(agentsecbench analyze "$ASB_PATH" --output "$ASB_OUTPUT" --minimum-confidence "$ASB_MINIMUM_CONFIDENCE")
+        [[ -z "$ASB_CONFIG" ]] || args+=(--config "$ASB_CONFIG")
+        [[ -z "$ASB_BASELINE" ]] || args+=(--baseline "$ASB_BASELINE")
+        [[ -z "$ASB_SUPPRESSIONS" ]] || args+=(--suppressions "$ASB_SUPPRESSIONS")
+        if [[ -n "$ASB_BLOCK_CATEGORIES" ]]; then
+          IFS=',' read -ra categories <<< "$ASB_BLOCK_CATEGORIES"
+          for category in "${categories[@]}"; do
+            category="${category//[[:space:]]/}"
+            [[ -z "$category" ]] || args+=(--block-category "$category")
+          done
+        fi
+        [[ "$ASB_FAIL_ON_NEW" != "true" ]] || args+=(--fail-on-new)
+        "${args[@]}"
+    - name: Publish output paths
+      id: paths
+      if: always()
+      shell: bash
+      env:
+        ASB_OUTPUT: ${{ inputs.output }}
+      run: |
+        echo "results=$ASB_OUTPUT" >> "$GITHUB_OUTPUT"
+        echo "report=$ASB_OUTPUT/report/index.html" >> "$GITHUB_OUTPUT"
+        echo "sarif=$ASB_OUTPUT/results.sarif" >> "$GITHUB_OUTPUT"
+        echo "policy=$ASB_OUTPUT/policy.json" >> "$GITHUB_OUTPUT"

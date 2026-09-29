@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.0/summary.schema.json",
+  "title": "AgentSecBench analysis summary",
+  "type": "object",
+  "required": ["schema_version", "status", "scan_root", "candidate_granularity", "files_considered", "files_scanned", "candidate_count", "category_counts", "claim_boundary", "findings_file", "security_adg_file", "validation_file", "report_file", "report_manifest_file", "sarif_file", "framework_adapter_count", "interprocedural_enabled", "graph_count", "graphs_with_dependency_path", "graphs_with_guard_candidate", "graphs_with_framework_evidence", "graphs_with_interprocedural_source", "wall_seconds"],
+  "properties": {
+    "schema_version": {"const": "1.0"}, "status": {"const": "completed"},
+    "scan_root": {"type": "string"}, "candidate_granularity": {"enum": ["line", "symbol"]},
+    "files_considered": {"type": "integer", "minimum": 0}, "files_scanned": {"type": "integer", "minimum": 0},
+    "files_skipped_size": {"type": "integer", "minimum": 0}, "files_skipped_binary": {"type": "integer", "minimum": 0},
+    "files_skipped_pattern": {"type": "integer", "minimum": 0}, "directories_pruned": {"type": "integer", "minimum": 0},
+    "candidate_count": {"type": "integer", "minimum": 0}, "category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "claim_boundary": {"type": "string"}, "findings_file": {"type": "string"}, "security_adg_file": {"type": "string"},
+    "validation_file": {"type": "string"}, "report_file": {"type": "string"}, "report_manifest_file": {"type": "string"},
+    "sarif_file": {"type": "string"}, "configuration_file": {"type": ["string", "null"]},
+    "framework_adapter_count": {"type": "integer", "minimum": 0}, "interprocedural_enabled": {"type": "boolean"},
+    "graph_count": {"type": "integer", "minimum": 0}, "graphs_with_dependency_path": {"type": "integer", "minimum": 0},
+    "graphs_with_guard_candidate": {"type": "integer", "minimum": 0}, "graphs_with_framework_evidence": {"type": "integer", "minimum": 0},
+    "graphs_with_interprocedural_source": {"type": "integer", "minimum": 0}, "wall_seconds": {"type": "number", "minimum": 0}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.0/finding.schema.json",
+  "title": "AgentSecBench finding",
+  "type": "object",
+  "required": ["schema_version", "finding_id", "fingerprint", "category", "confidence", "path", "line_start", "line_end", "evidence_lines", "evidence_line_sha256", "match_count", "symbol", "detectors", "evidence", "review_status"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "finding_id": {"type": "string", "pattern": "^ASB-[0-9A-F]{16}$"},
+    "fingerprint": {"type": "string", "pattern": "^ASBFP-[0-9A-F]{24}$"},
+    "category": {"type": "string", "minLength": 1},
+    "confidence": {"enum": ["medium", "high"]},
+    "path": {"type": "string", "minLength": 1},
+    "line_start": {"type": "integer", "minimum": 1},
+    "line_end": {"type": "integer", "minimum": 1},
+    "evidence_lines": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+    "evidence_line_sha256": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "match_count": {"type": "integer", "minimum": 1},
+    "symbol": {"type": "string"},
+    "detectors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "review_status": {"const": "candidate"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,11 @@
+schema_version = "1.0"
+
+# Copy to .agentsecbench-suppressions.toml and reference it from [policy] in
+# .agentsecbench.toml. Use the stable fingerprint emitted in findings.jsonl.
+# Every suppression is explicit, attributable, and optionally time-bounded.
+[[suppressions]]
+id = "accepted-isolated-test-runner"
+fingerprint = "ASBFP-REPLACE_WITH_FINDING_FINGERPRINT"
+reason = "Test-only runner is isolated from agent-controlled input"
+owner = "security-team"
+expires = "2027-12-31"

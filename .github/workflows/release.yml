@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          package_version=$(python -c "import pathlib,re; text=pathlib.Path('src/agentsecbench/_version.py').read_text(); print(re.search(r'VERSION = \"([^\"]+)\"', text).group(1))")
+          test "v${package_version}" = "$GITHUB_REF_NAME"
+      - name: Run complete test suite
+        run: python -m unittest discover -s tests
+      - name: Build wheel and source distribution
+        run: |
+          python -m pip install --disable-pip-version-check build
+          python -m build
+      - name: Verify built wheel
+        run: |
+          python -m venv /tmp/agentsecbench-release-check
+          /tmp/agentsecbench-release-check/bin/python -m pip install --no-deps dist/*.whl
+          /tmp/agentsecbench-release-check/bin/agentsecbench --version
+          /tmp/agentsecbench-release-check/bin/agentsecbench schema --json
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.whl *.tar.gz > SHA256SUMS
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "AgentSecBench $GITHUB_REF_NAME"
+          fi

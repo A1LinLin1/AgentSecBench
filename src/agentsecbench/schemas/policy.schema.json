@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.0/policy.schema.json",
+  "title": "AgentSecBench policy evaluation",
+  "type": "object",
+  "required": ["schema_version", "status", "baseline_configured", "total_findings", "existing_findings", "new_findings", "suppressed_findings", "new_unsuppressed_findings", "blocking_findings", "blocking_category_counts", "policy_filters", "expired_suppressions", "findings", "claim_boundary"],
+  "properties": {
+    "schema_version": {"const": "1.0"}, "status": {"const": "completed"},
+    "baseline_file": {"type": ["string", "null"]}, "suppressions_file": {"type": ["string", "null"]},
+    "baseline_configured": {"type": "boolean"}, "total_findings": {"type": "integer", "minimum": 0},
+    "existing_findings": {"type": "integer", "minimum": 0}, "new_findings": {"type": "integer", "minimum": 0},
+    "suppressed_findings": {"type": "integer", "minimum": 0}, "new_unsuppressed_findings": {"type": "integer", "minimum": 0},
+    "blocking_findings": {"type": "integer", "minimum": 0},
+    "blocking_category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "policy_filters": {"type": "object", "required": ["blocking_categories", "minimum_confidence"]},
+    "expired_suppressions": {"type": "array", "items": {"type": "object", "required": ["id", "fingerprint", "expires"]}},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["finding_id", "fingerprint", "path", "line", "category", "confidence", "baseline_status", "suppressed", "suppression_id", "policy_match", "blocking"]
+      }
+    },
+    "claim_boundary": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/A1LinLin1/AgentSecBench/security
+    about: Use GitHub private vulnerability reporting for AgentSecBench security issues.

@@ -1,0 +1,35 @@
+name: Bug report
+description: Report an analyzer, CLI, report, or integration defect
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include vulnerability details, credentials, private source, or uncoordinated third-party findings. Use SECURITY.md for security reports.
+  - type: input
+    id: version
+    attributes:
+      label: AgentSecBench version or commit
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the command, a minimal non-sensitive fixture, and the observed output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11, Python 3.12
+    validations:
+      required: true

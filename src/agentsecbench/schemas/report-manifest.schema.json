@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.1/report-manifest.schema.json",
+  "title": "AgentSecBench offline report manifest",
+  "type": "object",
+  "required": ["schema_version", "renderer", "purpose", "candidate_count", "validation_passed", "policy_embedded", "category_counts", "files", "page_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.1"}, "renderer": {"const": "agentsecbench_offline_report_v2"},
+    "purpose": {"type": "string"}, "candidate_count": {"type": "integer", "minimum": 0},
+    "validation_passed": {"type": "boolean"}, "policy_embedded": {"type": "boolean"},
+    "category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "files": {"type": "object", "required": ["page"], "properties": {"page": {"const": "index.html"}}, "additionalProperties": false},
+    "page_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

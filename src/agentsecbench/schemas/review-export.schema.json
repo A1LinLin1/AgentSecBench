@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.0/review-export.schema.json",
+  "title": "AgentSecBench browser review export",
+  "type": "object",
+  "required": ["schema_version", "kind", "report_key", "exported_at", "claim_boundary", "reviews"],
+  "properties": {
+    "schema_version": {"const": "1.0"}, "kind": {"const": "agentsecbench_review_export"},
+    "report_key": {"type": "string", "pattern": "^agentsecbench-review-v1-"},
+    "exported_at": {"type": "string", "format": "date-time"},
+    "claim_boundary": {"type": "string"},
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["candidate_id", "fingerprint", "file", "line_start", "line_end", "category", "disposition", "note", "updated_at"],
+        "properties": {
+          "candidate_id": {"type": "string"}, "fingerprint": {"type": ["string", "null"]},
+          "file": {"type": "string"}, "line_start": {"type": ["integer", "null"]}, "line_end": {"type": ["integer", "null"]},
+          "category": {"type": "string"},
+          "disposition": {"enum": ["unreviewed", "investigate", "action_required", "accepted_behavior", "not_relevant"]},
+          "note": {"type": "string"}, "updated_at": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

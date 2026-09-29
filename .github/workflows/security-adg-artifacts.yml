@@ -3,14 +3,22 @@ name: Security-ADG artifact checks
 on:
   pull_request:
     paths:
+      - "pyproject.toml"
+      - "action.yml"
+      - "src/**"
       - "scripts/**"
       - "tests/**"
+      - "benchmarks/security_adg_micro/**"
       - ".github/workflows/security-adg-artifacts.yml"
   push:
     branches: [main]
     paths:
+      - "pyproject.toml"
+      - "action.yml"
+      - "src/**"
       - "scripts/**"
       - "tests/**"
+      - "benchmarks/security_adg_micro/**"
       - ".github/workflows/security-adg-artifacts.yml"
   workflow_dispatch:
 
@@ -25,9 +33,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install engineering package
+        run: python -m pip install --no-deps .
+      - name: Run package CLI smoke test
+        run: |
+          agentsecbench --version
+          agentsecbench doctor --json
       - name: Run Security-ADG tests
         run: >-
           python -m unittest
+          tests/test_cli.py
+          tests/test_product_scanner.py
+          tests/test_product_security_adg.py
+          tests/test_product_report.py
+          tests/test_product_config.py
+          tests/test_product_sarif.py
+          tests/test_product_interprocedural.py
+          tests/test_product_typescript_interprocedural.py
+          tests/test_interprocedural_delta.py
+          tests/test_product_policy.py
+          tests/test_product_schemas.py
           tests/test_security_adg_dataflow.py
           tests/test_security_adg_showcase.py
           tests/test_heldout_reproduction_case_matrix.py
@@ -36,12 +61,57 @@ jobs:
           tests/test_export_paper_tables.py
           tests/test_corpus_wide_security_adg_report.py
           tests/test_runtime_metrics.py
+      - name: Test reusable repository action
+        uses: ./
+        with:
+          path: benchmarks/security_adg_micro/v1
+          output: artifacts/reusable-action-fixture
+          fail-on-new: "false"
+      - name: Verify reusable action output
+        run: test -f artifacts/reusable-action-fixture/report/index.html
       - name: Build deterministic showcase fixture
         run: >-
           python scripts/generate_security_adg_showcase.py
           --graphs tests/fixtures/security_adg_showcase.jsonl
           --output-dir artifacts/security-adg-ci-showcase
           --max-graphs 2
+      - name: Build installable product report fixture
+        run: >-
+          agentsecbench analyze benchmarks/security_adg_micro/v1
+          --output artifacts/product-report-fixture
+          --include cases.py
+          --json
+      - name: Upload installable product report
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsecbench-product-report
+          path: artifacts/product-report-fixture
+          if-no-files-found: error
+      - name: Upload SARIF as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsecbench-sarif
+          path: artifacts/product-report-fixture/results.sarif
+          if-no-files-found: error
+      - name: Build paired interprocedural ablation artifact
+        run: |
+          agentsecbench analyze benchmarks/security_adg_micro/v4_interprocedural \
+            --output artifacts/interprocedural-ablation/intraprocedural \
+            --no-interprocedural --json
+          agentsecbench analyze benchmarks/security_adg_micro/v4_interprocedural \
+            --output artifacts/interprocedural-ablation/interprocedural --json
+          python scripts/evaluate_interprocedural_delta.py \
+            --baseline-graphs artifacts/interprocedural-ablation/intraprocedural/security-adg.jsonl \
+            --interprocedural-graphs artifacts/interprocedural-ablation/interprocedural/security-adg.jsonl \
+            --baseline-summary artifacts/interprocedural-ablation/intraprocedural/summary.json \
+            --interprocedural-summary artifacts/interprocedural-ablation/interprocedural/summary.json \
+            --output-dir artifacts/interprocedural-ablation/comparison
+      - name: Upload paired interprocedural ablation
+        uses: actions/upload-artifact@v4
+        with:
+          name: interprocedural-ablation
+          path: artifacts/interprocedural-ablation
+          if-no-files-found: error
       - name: Upload interactive evidence view
         uses: actions/upload-artifact@v4
         with:

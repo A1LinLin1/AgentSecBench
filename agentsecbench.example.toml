@@ -1,0 +1,25 @@
+[scan]
+granularity = "line"
+max_file_bytes = 2000000
+exclude = ["examples/generated/**", "**/*.min.js"]
+
+[analysis]
+interprocedural = true
+
+# [policy]
+# baseline = ".agentsecbench-baseline.json"
+# suppressions = ".agentsecbench-suppressions.toml"
+# blocking_categories = ["command_execution", "file_write", "dynamic_code_execution"]
+# minimum_confidence = "high"
+
+# Copy this file to .agentsecbench.toml inside the repository being analyzed.
+# This example adapter demonstrates how a future framework can participate in
+# both candidate discovery and Security-ADG framework/source normalization.
+[[framework_adapters]]
+id = "acme-agent"
+name = "Acme Agent"
+languages = ["python"]
+source_patterns = ['(?:from|import)\s+acme_agent\b']
+decorator_patterns = ['(?:^|\.)acme_tool$']
+candidate_patterns = ['@acme_tool\b']
+confidence = "high"

@@ -1,21 +1,131 @@
 # AgentSecBench
 
-AgentSecBench is a research artifact for studying security-sensitive behavior
-in real-world LLM-agent systems. It combines a frozen benchmark design with
-Security-Aware Agent Dependency Graphs (Security-ADGs): candidate-level evidence
-graphs that preserve operations, external effects, dependency paths,
-trust-boundary evidence, and guard context.
+[![Security-ADG checks](https://github.com/A1LinLin1/AgentSecBench/actions/workflows/security-adg-artifacts.yml/badge.svg)](https://github.com/A1LinLin1/AgentSecBench/actions/workflows/security-adg-artifacts.yml)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![Analysis](https://img.shields.io/badge/analysis-read--only-2F6F75)
+[![License](https://img.shields.io/badge/license-Apache--2.0-D22128)](LICENSE)
 
-The project is designed around one claim boundary:
+**Find security-sensitive behavior in LLM-agent code and inspect how agent-facing
+inputs may reach shells, files, interpreters, browsers, and external tools.**
 
-```text
-security-sensitive behavior discovery != vulnerability counting
+AgentSecBench is a dependency-free static analyzer for Python and
+JavaScript/TypeScript agent repositories. It emits candidate findings,
+candidate-centered Security-Aware Agent Dependency Graphs (Security-ADGs),
+SARIF, CI policy results, and a self-contained offline review dashboard.
+
+> AgentSecBench discovers review candidates. It does not automatically label
+> findings as vulnerabilities or replace impact and boundary validation.
+
+![AgentSecBench offline review dashboard](docs/assets/agentsecbench-report.png)
+
+## Try it in two minutes
+
+Requires Python 3.11 or newer. The current preview installs directly from the
+repository; no target-project dependencies are installed or executed.
+
+```bash
+git clone https://github.com/A1LinLin1/AgentSecBench.git
+cd AgentSecBench
+python -m pip install --no-deps .
+agentsecbench doctor
+agentsecbench analyze /path/to/your-agent --output agentsecbench-results
 ```
 
-Static candidates are review targets, not vulnerability claims. Vulnerability
-claims require additional impact and trust/authentication-boundary evidence.
+Open `agentsecbench-results/report/index.html`. The report works offline and
+contains the candidate queue, three graph views, source evidence, dependency
+paths, guard context, browser-local review notes, and audit export.
 
-## Current public artifact snapshot
+On PowerShell, the analysis command is identical:
+
+```powershell
+agentsecbench analyze H:\projects\my-agent `
+  --output agentsecbench-results
+Start-Process agentsecbench-results\report\index.html
+```
+
+## What you get
+
+| Capability | Output |
+|---|---|
+| Security-sensitive operation discovery | `findings.jsonl` |
+| Agent/source-to-effect evidence graphs | `security-adg.jsonl` |
+| Visual investigation and local triage | `report/index.html` |
+| GitHub and IDE integration | `results.sarif` |
+| Existing/new/suppressed CI classification (when enabled) | `policy.json` |
+| Concise pull-request summary (when enabled) | `policy-summary.md` |
+| Stable automation contract | bundled versioned JSON Schemas |
+
+The analyzer is read-only: it does not import or execute analyzed source,
+install target dependencies, or contact external services.
+
+## Use in GitHub Actions
+
+```yaml
+name: Agent security review
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  agentsecbench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Analyze agent code
+        uses: A1LinLin1/AgentSecBench@v0.1.0
+        with:
+          path: .
+          output: agentsecbench-results
+          block-categories: command_execution,filesystem_write,dynamic_code_execution
+          minimum-confidence: high
+          fail-on-new: "true"
+      - name: Upload review report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsecbench-results
+          path: agentsecbench-results
+```
+
+For incremental adoption, create a baseline after reviewing the first scan;
+future CI runs can then block only new, unsuppressed candidates.
+
+## How it works
+
+```text
+source tree
+   │
+   ├─ operation + framework detection
+   ├─ bounded local/project dependency analysis
+   ├─ guard and trust-boundary evidence extraction
+   ▼
+candidate-centered Security-ADG
+   ├─ JSONL + SARIF
+   ├─ offline visual review
+   └─ baseline/suppression-aware CI policy
+```
+
+Python and JavaScript/TypeScript project-level propagation follows direct local
+imports and calls with bounded depth and cycle detection. Dynamic dispatch,
+reflection, aliases, and inferred trust boundaries remain visibly marked as
+analysis limitations instead of being presented as confirmed facts.
+
+## Stable output schemas
+
+Primary outputs carry independent schema versions. List or print the bundled
+JSON Schema Draft 2020-12 contracts without network access:
+
+```bash
+agentsecbench schema --json
+agentsecbench schema finding
+agentsecbench schema security-adg
+```
+
+See [the compatibility policy](docs/OUTPUT_SCHEMA_COMPATIBILITY.md) for the
+versioning rules and complete output-to-schema mapping.
+
+## Research artifact snapshot
 
 The public repository contains the method implementation, deterministic
 fixtures, CI checks, paper-facing protocols, and reproducibility scripts. The
@@ -75,7 +185,151 @@ Use these boundaries when citing or extending this artifact:
 - The committed fixtures support deterministic artifact checks, not
   population-level precision/recall/F1 claims.
 
-## Quick start
+## Detailed local workflow
+
+Optionally initialize a strict per-project configuration before the first
+scan. Direct repository analysis also works without a corpus manifest or
+configuration file:
+
+```powershell
+agentsecbench init H:\projects\my-agent
+agentsecbench analyze H:\projects\my-agent `
+  --output agentsecbench-results
+```
+
+`init` creates a commented `.agentsecbench.toml` with practical exclusions and
+interprocedural analysis enabled. It refuses to overwrite an existing file
+unless `--force` is supplied. Use `--json` for editor or automation
+integration. The generated configuration is optional: `analyze` also works
+immediately with built-in defaults.
+
+This read-only command writes:
+
+- `findings.jsonl`: security-sensitive behavior candidates;
+- `security-adg.jsonl`: one candidate-centered Security-ADG per finding;
+- `security-adg-summary.json`: dependency, guard, and framework coverage;
+- `validation.json`: graph/provenance invariant checks;
+- `report/index.html`: a self-contained interactive review dashboard with
+  category/evidence overview, responsive candidate filters, CI policy status,
+  Security-ADG views, source evidence, dependency paths, browser-local human
+  dispositions and notes, review-JSON export, and exact-fingerprint
+  suppression-draft export;
+- `results.sarif`: SARIF 2.1.0 output for GitHub and compatible IDEs; and
+- `summary.json`: the stable run summary.
+
+It does not import or execute target code, install target dependencies, or use
+the network. Inferred dependencies, guards, and trust-boundary crossings remain
+explicitly marked as static candidates; they are not vulnerability claims.
+Existing paper-reproduction scripts remain compatible.
+
+### Adopt in CI without failing on historical findings
+
+After reviewing an initial scan, freeze its stable fingerprints as the project
+baseline:
+
+```powershell
+agentsecbench baseline agentsecbench-results\findings.jsonl `
+  --output .agentsecbench-baseline.json
+```
+
+Reference it from `.agentsecbench.toml`:
+
+```toml
+[policy]
+baseline = ".agentsecbench-baseline.json"
+suppressions = ".agentsecbench-suppressions.toml"
+blocking_categories = ["command_execution", "filesystem_write", "dynamic_code_execution"]
+minimum_confidence = "high"
+```
+
+Then make CI fail only when a new, unsuppressed candidate appears:
+
+```powershell
+agentsecbench analyze . --output agentsecbench-results --fail-on-new
+```
+
+`--fail-on-new` returns exit code `4`. The run writes `policy.json` containing
+the existing/new/suppressed classification for every candidate. Stable
+fingerprints tolerate line movement when the path, symbol, detector, category,
+and evidence text remain unchanged.
+
+Policy filters affect only the CI blocking decision: every candidate remains in
+`findings.jsonl`, SARIF, Security-ADG, and the HTML report. The run also writes
+`policy-summary.md`, which can be published in GitHub Actions:
+
+```yaml
+- name: Analyze changed repository
+  run: agentsecbench analyze . --output agentsecbench-results --fail-on-new
+- name: Publish AgentSecBench summary
+  if: always()
+  run: cat agentsecbench-results/policy-summary.md >> "$GITHUB_STEP_SUMMARY"
+```
+
+Suppressions are exact-fingerprint records rather than silent broad patterns.
+Each record requires an ID, reason, and owner, and may include an expiry date.
+Expired suppressions are reported and no longer applied. See
+`agentsecbench-suppressions.example.toml` for the auditable format.
+
+The report's human disposition is triage metadata, not vulnerability ground
+truth. It is stored under a report-specific key in browser local storage so the
+HTML remains offline and no review data is uploaded. Export review JSON before
+moving to another browser or machine. Suppression drafts include only findings
+explicitly marked `not relevant` and still contain an owner placeholder that
+must be reviewed before use.
+
+For Python and JavaScript/TypeScript projects, graph construction also builds a
+read-only project call index. Direct local calls and imports are followed
+backwards from a sensitive operation to agent-facing entrypoint parameters,
+with cycle detection and a bounded depth. Python supports direct local imports
+and keyword arguments. JavaScript/TypeScript supports direct named and
+namespace ES/CommonJS imports with named functions. Dynamic imports,
+reflection, prototype dispatch, and runtime aliases remain explicit analysis
+limitations.
+
+### Paired interprocedural ablation
+
+The committed `v4_interprocedural` microbenchmark measures what project-level
+propagation adds while holding source files, scan rules, and candidate IDs
+fixed. Run the same benchmark once with the stage disabled and once enabled:
+
+```powershell
+agentsecbench analyze benchmarks\security_adg_micro\v4_interprocedural `
+  --output artifacts\interprocedural-ablation\intraprocedural `
+  --no-interprocedural --json
+
+agentsecbench analyze benchmarks\security_adg_micro\v4_interprocedural `
+  --output artifacts\interprocedural-ablation\interprocedural --json
+
+python scripts\evaluate_interprocedural_delta.py `
+  --baseline-graphs artifacts\interprocedural-ablation\intraprocedural\security-adg.jsonl `
+  --interprocedural-graphs artifacts\interprocedural-ablation\interprocedural\security-adg.jsonl `
+  --baseline-summary artifacts\interprocedural-ablation\intraprocedural\summary.json `
+  --interprocedural-summary artifacts\interprocedural-ablation\interprocedural\summary.json `
+  --output-dir artifacts\interprocedural-ablation\comparison
+```
+
+The evaluator refuses to compare different candidate populations or changed
+candidate coordinates. Its output reports path refinements, framework-source
+recovery, language contributions, call depth, and observed runtime. These are
+representation-delta measurements, not precision, recall, or vulnerability
+ground truth.
+
+### Project configuration and new frameworks
+
+Copy `agentsecbench.example.toml` to `.agentsecbench.toml` in the repository
+being analyzed. The `[scan]` table controls path selection and candidate
+granularity. Each `[[framework_adapters]]` table can add a new agent framework
+using source, decorator, registration, and candidate regexes. Configuration is
+strictly validated: unknown keys, invalid regexes, duplicate adapter IDs, and
+unsupported languages stop the scan instead of silently reducing coverage.
+
+An explicit configuration can also be selected on the command line:
+
+```powershell
+agentsecbench analyze H:\projects\my-agent `
+  --config H:\projects\my-agent\.agentsecbench.toml `
+  --output agentsecbench-results
+```
 
 Run the deterministic CI-equivalent tests:
 
@@ -193,6 +447,9 @@ the paper-facing method and experiment design.
 
 ```text
 .github/workflows/              CI checks and artifact uploads
+action.yml                      reusable GitHub Action
+src/agentsecbench/              installable analyzer, graph engine, and report UI
+src/agentsecbench/schemas/      versioned machine-readable output contracts
 annotations/                    UI source and public annotation protocols
 baselines/                      predefined baseline rules
 benchmarks/security_adg_micro/   microbenchmark cases
@@ -205,16 +462,16 @@ tools/                          toolchain metadata
 
 ## Useful documents
 
-- [docs/METHOD_SECTION_DRAFT.md](docs/METHOD_SECTION_DRAFT.md)
-- [docs/PAPER_RQ_EXPERIMENT_MAPPING.md](docs/PAPER_RQ_EXPERIMENT_MAPPING.md)
-- [docs/REPRODUCTION_GROUND_TRUTH_PROTOCOL.md](docs/REPRODUCTION_GROUND_TRUTH_PROTOCOL.md)
-- [docs/PAPER_GROUND_TRUTH_CONSTRUCTION_SECTION.md](docs/PAPER_GROUND_TRUTH_CONSTRUCTION_SECTION.md)
+- [Output schema compatibility](docs/OUTPUT_SCHEMA_COMPATIBILITY.md)
 - [docs/BASELINE_MATCHING_POLICY.md](docs/BASELINE_MATCHING_POLICY.md)
 - [docs/SECURITY_ADG_PIPELINE.md](docs/SECURITY_ADG_PIPELINE.md)
-- [docs/MUTATION_V4_PROTOCOL.md](docs/MUTATION_V4_PROTOCOL.md)
+- [Engineering roadmap](docs/PRODUCT_ROADMAP.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## Status
 
-This is an active research artifact. Interfaces and experiment protocols may
-evolve while the benchmark and paper are being finalized. Public claims should
-follow the claim boundaries above.
+The installable analyzer is an engineering preview (`0.1.0`). Output
+schemas are versioned independently, and CI checks cover the CLI, graph
+construction, visual report, policy workflow, and bundled schema contracts.
+Public claims should follow the claim boundaries above.

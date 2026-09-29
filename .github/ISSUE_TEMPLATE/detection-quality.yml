@@ -1,0 +1,39 @@
+name: Detection quality report
+description: Report a false positive, false negative, or missing framework model
+title: "[Detection] "
+labels: [detection]
+body:
+  - type: markdown
+    attributes:
+      value: Share only public or synthetic code. Coordinate real vulnerability details privately with the affected project.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Report type
+      options:
+        - False positive
+        - False negative
+        - Missing framework adapter
+        - Incorrect dependency or guard evidence
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Minimal synthetic fixture
+      description: Provide the smallest safe code example that reproduces the detection behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant finding or graph excerpt
+      description: Remove secrets, private paths, and unrelated source.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Expected semantic interpretation
+    validations:
+      required: true

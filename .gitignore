@@ -5,8 +5,26 @@
 /*
 !/.gitignore
 !/README.md
+!/CONTRIBUTING.md
+!/SECURITY.md
+!/LICENSE
+!/NOTICE
+!/pyproject.toml
+!/agentsecbench.example.toml
+!/agentsecbench-suppressions.example.toml
+!/action.yml
 !/.github/
 !/.github/**
+
+# Installable engineering package. Research scripts remain available as
+# compatibility entry points while stable APIs move under src/agentsecbench.
+!/src/
+!/src/**
+/src/**/__pycache__/
+/src/*.egg-info/
+/build/
+/dist/
+/agentsecbench-results/
 
 # Method implementation and deterministic test fixtures.
 !/scripts/
@@ -42,6 +60,10 @@
 !/docs/PROJECT_REVIEW_20260903.md
 !/docs/GOLD_SET_DEFINITION.md
 !/docs/BASELINE_MATCHING_POLICY.md
+!/docs/PRODUCT_ROADMAP.md
+!/docs/OUTPUT_SCHEMA_COMPATIBILITY.md
+!/docs/assets/
+!/docs/assets/**
 !/docs/HELD_OUT_ANNOTATION_OPERATIONS.md
 !/docs/MODEL_ASSISTED_REPRODUCIBLE_GOLD_PROTOCOL.md
 !/docs/REPRODUCTION_GROUND_TRUTH_PROTOCOL.md
