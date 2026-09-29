@@ -14,7 +14,7 @@ vulnerability claims.
 The supported first-run path is:
 
 ```text
-install -> doctor -> init -> analyze -> inspect HTML/SARIF -> triage
+install -> doctor -> demo -> init -> analyze -> inspect HTML/SARIF -> triage
 ```
 
 ## P0: usable public preview
@@ -33,6 +33,7 @@ install -> doctor -> init -> analyze -> inspect HTML/SARIF -> triage
 - [x] Public release workflow with versioned GitHub releases and checksums.
 - [x] End-user documentation for installation, configuration, CI, and result
   interpretation.
+- [x] A self-contained, offline first-run demo that generates a complete report.
 
 ## P1: practical team workflow
 

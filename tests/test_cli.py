@@ -20,7 +20,7 @@ from agentsecbench.cli import build_doctor_report, main  # noqa: E402
 
 class CliTests(unittest.TestCase):
     def test_public_version_is_pre_release(self) -> None:
-        self.assertEqual(__version__, "0.1.0")
+        self.assertEqual(__version__, "0.1.1")
 
     def test_doctor_report_has_stable_schema(self) -> None:
         report = build_doctor_report().to_dict()

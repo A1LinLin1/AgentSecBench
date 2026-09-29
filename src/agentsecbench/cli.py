@@ -16,6 +16,7 @@ from .scanner import ScanOptions, analyze_repository
 from .scanner.engine import AnalysisError
 from .config import ConfigError, load_project_config
 from .initialization import initialize_project
+from .demo import DemoError, run_demo
 from .report import build_report
 from .schemas import SCHEMA_NAMES, read_schema
 from .policy import (
@@ -105,6 +106,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Check the local runtime and optional tool integrations.",
     )
     doctor.add_argument("--json", action="store_true", help="Emit a stable JSON report.")
+
+    demo = subparsers.add_parser(
+        "demo",
+        help="Run a self-contained authored example and build an offline report.",
+    )
+    demo.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=Path("agentsecbench-demo"),
+        help="New or empty demo directory (default: ./agentsecbench-demo).",
+    )
+    demo.add_argument("--json", action="store_true", help="Emit a stable JSON result.")
 
     initialize = subparsers.add_parser(
         "init",
@@ -246,6 +260,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print_human_doctor_report(report)
         return 0 if report.python_supported else 2
+    if args.command == "demo":
+        try:
+            result = run_demo(args.output)
+        except (DemoError, AnalysisError, OSError) as error:
+            print(f"agentsecbench: error: {error}", file=sys.stderr)
+            return 2
+        payload = result.to_dict()
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print("AgentSecBench demo completed.")
+            print(f"Authored candidates: {result.candidate_count}")
+            print(f"Categories: {', '.join(result.categories)}")
+            print(f"Interactive report: {result.report_file}")
+            print("No target code was executed. These are demonstration candidates, not vulnerabilities.")
+        return 0
     if args.command == "init":
         try:
             result = initialize_project(args.path, force=args.force)

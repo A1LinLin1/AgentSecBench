@@ -43,6 +43,7 @@ jobs:
         run: >-
           python -m unittest
           tests/test_cli.py
+          tests/test_product_demo.py
           tests/test_product_scanner.py
           tests/test_product_security_adg.py
           tests/test_product_report.py
@@ -67,6 +68,10 @@ jobs:
           path: benchmarks/security_adg_micro/v1
           output: artifacts/reusable-action-fixture
           fail-on-new: "false"
+      - name: Run self-contained first-use demo
+        run: agentsecbench demo --output artifacts/first-use-demo --json
+      - name: Verify first-use demo report
+        run: test -f artifacts/first-use-demo/results/report/index.html
       - name: Verify reusable action output
         run: test -f artifacts/reusable-action-fixture/report/index.html
       - name: Build deterministic showcase fixture

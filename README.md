@@ -20,14 +20,20 @@ SARIF, CI policy results, and a self-contained offline review dashboard.
 
 ## Try it in two minutes
 
-Requires Python 3.11 or newer. The current preview installs directly from the
-repository; no target-project dependencies are installed or executed.
+Requires Python 3.11 or newer. Start with the authored offline demo; it needs no
+target repository, network access, or third-party dependencies.
 
 ```bash
-git clone https://github.com/A1LinLin1/AgentSecBench.git
-cd AgentSecBench
-python -m pip install --no-deps .
+python -m pip install https://github.com/A1LinLin1/AgentSecBench/releases/download/v0.1.1/agentsecbench-0.1.1-py3-none-any.whl
 agentsecbench doctor
+agentsecbench demo --output agentsecbench-demo
+```
+
+Open `agentsecbench-demo/results/report/index.html`. The demo analyzes a small,
+authored Agent-like source file and never executes it. When the report looks
+right, scan a real local project:
+
+```bash
 agentsecbench analyze /path/to/your-agent --output agentsecbench-results
 ```
 
@@ -38,6 +44,9 @@ paths, guard context, browser-local review notes, and audit export.
 On PowerShell, the analysis command is identical:
 
 ```powershell
+agentsecbench demo --output agentsecbench-demo
+Start-Process agentsecbench-demo\results\report\index.html
+
 agentsecbench analyze H:\projects\my-agent `
   --output agentsecbench-results
 Start-Process agentsecbench-results\report\index.html
@@ -73,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Analyze agent code
-        uses: A1LinLin1/AgentSecBench@v0.1.0
+        uses: A1LinLin1/AgentSecBench@v0.1.1
         with:
           path: .
           output: agentsecbench-results
@@ -471,7 +480,7 @@ tools/                          toolchain metadata
 
 ## Status
 
-The installable analyzer is an engineering preview (`0.1.0`). Output
+The installable analyzer is an engineering preview (`0.1.1`). Output
 schemas are versioned independently, and CI checks cover the CLI, graph
 construction, visual report, policy workflow, and bundled schema contracts.
 Public claims should follow the claim boundaries above.
