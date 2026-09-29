@@ -15,7 +15,10 @@ FIXTURE = ROOT / "tests" / "fixtures" / "security_adg_showcase.jsonl"
 sys.path.insert(0, str(ROOT / "scripts"))
 from generate_security_adg_showcase import compact_graph, page_html
 from security_adg_figure import VIEWS, figure_svg
-from build_agent_case_study_showcase_graphs import alr_001_graph, alr_003_graph, alr_007_graph, ase_0007_graph
+
+
+def fixture_graphs() -> list[dict]:
+    return [json.loads(line) for line in FIXTURE.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 class SecurityAdgShowcaseTests(unittest.TestCase):
@@ -48,7 +51,7 @@ class SecurityAdgShowcaseTests(unittest.TestCase):
             self.assertEqual([item["candidate_id"] for item in manifest["candidates"]], ["FIX-SADG-002"])
 
     def test_case_figures_preserve_graph_and_avoid_node_collisions(self):
-        for graph in [alr_001_graph(), alr_003_graph(), alr_007_graph(), ase_0007_graph()]:
+        for graph in fixture_graphs():
             case = compact_graph(graph)
             for view in VIEWS:
                 with self.subTest(case=case["candidateId"], view=view):
@@ -77,7 +80,7 @@ class SecurityAdgShowcaseTests(unittest.TestCase):
                                 self.assertFalse(collision, (case["candidateId"], route, nid))
 
     def test_labels_are_escaped_and_not_truncated(self):
-        case = compact_graph(alr_007_graph())
+        case = compact_graph(fixture_graphs()[0])
         label = '</script><script>alert("x")</script>' + 'long_symbol_' * 12
         case["nodes"][0]["label"] = label
         svg, plan = figure_svg(case, "security_adg")
