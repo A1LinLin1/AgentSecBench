@@ -21,6 +21,7 @@ under `agentsecbench.schemas` and can be printed with `agentsecbench schema`.
 | Name | Output | Version |
 |---|---|---:|
 | `finding` | `findings.jsonl` | 1.0 |
+| `framework-coverage` | `framework-coverage.json` | 1.0 |
 | `security-adg` | `security-adg.jsonl` | 1.0 |
 | `summary` | `summary.json` | 1.0 |
 | `policy` | `policy.json` | 1.0 |

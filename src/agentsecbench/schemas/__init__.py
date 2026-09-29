@@ -9,6 +9,7 @@ from typing import Any
 
 SCHEMA_NAMES = (
     "finding",
+    "framework-coverage",
     "policy",
     "report-manifest",
     "review-export",

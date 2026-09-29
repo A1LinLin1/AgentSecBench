@@ -18,6 +18,7 @@ from agentsecbench._version import VERSION
 from agentsecbench.config import ProjectConfig, load_project_config
 from agentsecbench.frameworks import adapter_registry
 from agentsecbench.sarif import write_sarif
+from agentsecbench.coverage import build_framework_coverage
 
 from .rules import (
     RULES,
@@ -329,6 +330,7 @@ def analyze_repository(
     findings_path = destination / "findings.jsonl"
     graphs_path = destination / "security-adg.jsonl"
     graph_summary_path = destination / "security-adg-summary.json"
+    framework_coverage_path = destination / "framework-coverage.json"
     validation_path = destination / "validation.json"
     sarif_path = destination / "results.sarif"
     report_dir = destination / "report"
@@ -350,10 +352,27 @@ def analyze_repository(
         "".join(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n" for item in graphs),
     )
     _atomic_write_text(graph_summary_path, json.dumps(graph_summary, ensure_ascii=False, indent=2) + "\n")
+    framework_coverage = build_framework_coverage(
+        source_texts,
+        tuple(findings),
+        graphs,
+        adapters,
+        graph_summary,
+    )
+    _atomic_write_text(
+        framework_coverage_path,
+        json.dumps(framework_coverage, ensure_ascii=False, indent=2) + "\n",
+    )
     _atomic_write_text(validation_path, json.dumps(validation, ensure_ascii=False, indent=2) + "\n")
     if not validation["valid"]:
         raise AnalysisError(f"generated Security-ADG artifacts failed validation: {validation_path}")
-    report_manifest = build_report(graphs, graph_summary, validation, report_dir)
+    report_manifest = build_report(
+        graphs,
+        graph_summary,
+        validation,
+        report_dir,
+        framework_coverage=framework_coverage,
+    )
     write_sarif(sarif_path, tuple(findings), VERSION)
     summary = AnalysisSummary(
         schema_version="1.0",
@@ -375,8 +394,12 @@ def analyze_repository(
         report_file=str(report_dir / report_manifest["files"]["page"]),
         report_manifest_file=str(report_dir / "manifest.json"),
         sarif_file=str(sarif_path),
+        framework_coverage_file=str(framework_coverage_path),
         configuration_file=str(config.path) if config.path else None,
         framework_adapter_count=len(adapters),
+        framework_signal_file_count=framework_coverage["framework_signal_file_count"],
+        framework_modeled_file_count=framework_coverage["framework_modeled_file_count"],
+        generic_candidate_file_count=framework_coverage["generic_candidate_file_count"],
         interprocedural_enabled=options.interprocedural,
         graph_count=graph_summary["graph_count"],
         graphs_with_dependency_path=graph_summary["graphs_with_dependency_path"],

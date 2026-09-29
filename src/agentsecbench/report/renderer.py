@@ -68,6 +68,7 @@ def build_report(
     validation: dict,
     output_dir: Path,
     policy: dict | None = None,
+    framework_coverage: dict | None = None,
 ) -> dict:
     """Write a self-contained HTML report and a machine-readable manifest."""
 
@@ -106,6 +107,7 @@ def build_report(
         "summary": graph_summary,
         "validation": validation,
         "policy": policy_summary,
+        "frameworkCoverage": framework_coverage,
         "cases": cases,
     }
     template = files("agentsecbench.report").joinpath("template.html").read_text(encoding="utf-8")

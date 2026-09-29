@@ -48,6 +48,7 @@ jobs:
           tests/test_product_security_adg.py
           tests/test_product_report.py
           tests/test_product_config.py
+          tests/test_product_framework_coverage.py
           tests/test_product_sarif.py
           tests/test_product_interprocedural.py
           tests/test_product_typescript_interprocedural.py

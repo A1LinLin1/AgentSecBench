@@ -43,8 +43,8 @@ install -> doctor -> demo -> init -> analyze -> inspect HTML/SARIF -> triage
 - [x] Stable CI exit codes and a concise pull-request summary.
 - Path-scoped policy for monorepos without permitting broad silent suppression.
 - SARIF fingerprints that remain stable across unrelated source movement.
-- Framework coverage diagnostics explaining which adapters matched and which
-  files could not be modeled.
+- [x] Framework coverage diagnostics explaining which adapters matched and
+  which files received only generic analysis.
 - [x] A machine-readable output schema and compatibility policy.
 
 ## P2: scale and extensibility
@@ -67,7 +67,7 @@ install -> doctor -> demo -> init -> analyze -> inspect HTML/SARIF -> triage
 
 ## Next implementation milestone
 
-The next product milestone is path-scoped monorepo policy and framework coverage
-diagnostics. The initial public release now includes versioned schemas, a
-reusable GitHub Action, baselines, exact-fingerprint suppressions,
-category/confidence policy, and Markdown CI summaries.
+The next product milestone is path-scoped monorepo policy. The public preview
+now includes versioned schemas, a reusable GitHub Action, baselines,
+exact-fingerprint suppressions, category/confidence policy, Markdown CI
+summaries, and framework coverage diagnostics.

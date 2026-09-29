@@ -13,8 +13,11 @@
     "candidate_count": {"type": "integer", "minimum": 0}, "category_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
     "claim_boundary": {"type": "string"}, "findings_file": {"type": "string"}, "security_adg_file": {"type": "string"},
     "validation_file": {"type": "string"}, "report_file": {"type": "string"}, "report_manifest_file": {"type": "string"},
-    "sarif_file": {"type": "string"}, "configuration_file": {"type": ["string", "null"]},
+    "sarif_file": {"type": "string"}, "framework_coverage_file": {"type": "string"}, "configuration_file": {"type": ["string", "null"]},
     "framework_adapter_count": {"type": "integer", "minimum": 0}, "interprocedural_enabled": {"type": "boolean"},
+    "framework_signal_file_count": {"type": "integer", "minimum": 0},
+    "framework_modeled_file_count": {"type": "integer", "minimum": 0},
+    "generic_candidate_file_count": {"type": "integer", "minimum": 0},
     "graph_count": {"type": "integer", "minimum": 0}, "graphs_with_dependency_path": {"type": "integer", "minimum": 0},
     "graphs_with_guard_candidate": {"type": "integer", "minimum": 0}, "graphs_with_framework_evidence": {"type": "integer", "minimum": 0},
     "graphs_with_interprocedural_source": {"type": "integer", "minimum": 0}, "wall_seconds": {"type": "number", "minimum": 0}

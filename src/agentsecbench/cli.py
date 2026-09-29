@@ -390,6 +390,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Validation: {result.summary.validation_file}")
             print(f"Interactive report: {result.summary.report_file}")
             print(f"SARIF: {result.summary.sarif_file}")
+            print(
+                "Framework coverage: "
+                f"{result.summary.framework_modeled_file_count} modeled files, "
+                f"{result.summary.framework_signal_file_count} signal files, "
+                f"{result.summary.generic_candidate_file_count} generic candidate files"
+            )
+            print(f"Coverage diagnostics: {result.summary.framework_coverage_file}")
             if policy is not None:
                 print(
                     "Policy: "

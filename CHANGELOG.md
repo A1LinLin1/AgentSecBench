@@ -3,6 +3,16 @@
 AgentSecBench follows semantic versioning for the installable CLI and its
 documented output contracts.
 
+## 0.2.0 - 2026-09-30
+
+- Add framework coverage diagnostics with modeled, signal-only, not-observed,
+  generic-candidate, fallback, and parse-failure evidence.
+- Embed framework coverage in the offline report and publish its versioned JSON
+  Schema.
+- Redesign the repository README around the product value, visual workflow,
+  quick start, and CI adoption path.
+- Move detailed operation and adapter guidance into focused documentation.
+
 ## 0.1.1 - 2026-09-30
 
 - Add `agentsecbench demo`, a network-free authored example that produces a

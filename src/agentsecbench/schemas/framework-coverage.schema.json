@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentsecbench.dev/schemas/1.0/framework-coverage.schema.json",
+  "title": "AgentSecBench framework coverage diagnostics",
+  "type": "object",
+  "required": ["schema_version", "status", "active_adapter_count", "adapter_status_counts", "source_file_count", "framework_signal_file_count", "framework_modeled_file_count", "candidate_file_count", "candidate_files_with_framework_context", "generic_candidate_file_count", "generic_candidate_files", "fallback_framework_counts", "parse_failures", "adapters", "interpretation", "claim_boundary"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "status": {"const": "completed"},
+    "active_adapter_count": {"type": "integer", "minimum": 0},
+    "adapter_status_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "source_file_count": {"type": "integer", "minimum": 0},
+    "framework_signal_file_count": {"type": "integer", "minimum": 0},
+    "framework_modeled_file_count": {"type": "integer", "minimum": 0},
+    "candidate_file_count": {"type": "integer", "minimum": 0},
+    "candidate_files_with_framework_context": {"type": "integer", "minimum": 0},
+    "generic_candidate_file_count": {"type": "integer", "minimum": 0},
+    "generic_candidate_files": {"type": "array", "items": {"type": "string"}},
+    "generic_candidate_files_truncated": {"type": "boolean"},
+    "fallback_framework_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "parse_failures": {"type": "array", "items": {"type": "string"}},
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["adapter_id", "name", "origin", "languages", "status", "signal_file_count", "signal_files", "modeled_file_count", "modeled_files", "modeled_candidate_count"],
+        "properties": {
+          "adapter_id": {"type": "string"}, "name": {"type": "string"}, "origin": {"type": "string"},
+          "languages": {"type": "array", "items": {"type": "string"}},
+          "status": {"enum": ["modeled", "signal_only", "not_observed"]},
+          "signal_file_count": {"type": "integer", "minimum": 0},
+          "signal_files": {"type": "array", "items": {"type": "string"}},
+          "signal_files_truncated": {"type": "boolean"},
+          "modeled_file_count": {"type": "integer", "minimum": 0},
+          "modeled_files": {"type": "array", "items": {"type": "string"}},
+          "modeled_files_truncated": {"type": "boolean"},
+          "modeled_candidate_count": {"type": "integer", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "interpretation": {"type": "object", "additionalProperties": {"type": "string"}},
+    "claim_boundary": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -58,8 +58,12 @@ class AnalysisSummary:
     report_file: str
     report_manifest_file: str
     sarif_file: str
+    framework_coverage_file: str
     configuration_file: str | None
     framework_adapter_count: int
+    framework_signal_file_count: int
+    framework_modeled_file_count: int
+    generic_candidate_file_count: int
     interprocedural_enabled: bool
     graph_count: int
     graphs_with_dependency_path: int

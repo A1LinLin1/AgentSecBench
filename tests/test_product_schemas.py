@@ -30,7 +30,7 @@ def run(command: str):
 
 class ProductSchemaTests(unittest.TestCase):
     def test_all_public_schemas_are_bundled_and_versioned(self) -> None:
-        self.assertEqual(len(SCHEMA_NAMES), 6)
+        self.assertEqual(len(SCHEMA_NAMES), 7)
         for name in SCHEMA_NAMES:
             schema = read_schema(name)
             self.assertEqual(schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
@@ -49,6 +49,7 @@ class ProductSchemaTests(unittest.TestCase):
             write_policy_report(base / "out" / "policy.json", policy)
             records = {
                 "finding": result.findings[0].to_dict(),
+                "framework-coverage": json.loads(Path(result.summary.framework_coverage_file).read_text(encoding="utf-8")),
                 "security-adg": result.graphs[0],
                 "summary": result.summary.to_dict(),
                 "policy": policy,
