@@ -32,6 +32,7 @@ dependencies = []
 Homepage = "https://github.com/A1LinLin1/AgentSecBench"
 Repository = "https://github.com/A1LinLin1/AgentSecBench"
 Issues = "https://github.com/A1LinLin1/AgentSecBench/issues"
+Paper = "https://arxiv.org/abs/2610.03014"
 
 [project.scripts]
 agentsecbench = "agentsecbench.cli:main"

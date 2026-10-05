@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use AgentSecBench or Security-ADG in your research, please cite the paper below."
+title: AgentSecBench
+type: software
+authors:
+  - family-names: Cui
+    given-names: Hang
+version: 0.2.0
+date-released: 2026-09-30
+license: Apache-2.0
+repository-code: "https://github.com/A1LinLin1/AgentSecBench"
+url: "https://github.com/A1LinLin1/AgentSecBench"
+abstract: >-
+  Read-only static analysis and explainable Security-Aware Agent Dependency
+  Graphs for LLM-agent software.
+keywords:
+  - LLM agents
+  - software security
+  - static analysis
+  - dependency graphs
+  - SARIF
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Cui
+      given-names: Hang
+  title: "Beyond Predefined Sinks: Security-Aware Dependency Analysis for LLM Agents"
+  year: 2026
+  journal: "arXiv preprint arXiv:2610.03014"
+  doi: "10.48550/arXiv.2610.03014"
+  url: "https://arxiv.org/abs/2610.03014"

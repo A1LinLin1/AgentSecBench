@@ -7,11 +7,12 @@
 Read-only static analysis and explainable Security-ADGs for LLM-agent code.
 
 [![Security-ADG checks](https://github.com/A1LinLin1/AgentSecBench/actions/workflows/security-adg-artifacts.yml/badge.svg)](https://github.com/A1LinLin1/AgentSecBench/actions/workflows/security-adg-artifacts.yml)
+[![arXiv](https://img.shields.io/badge/arXiv-2610.03014-b31b1b.svg)](https://arxiv.org/abs/2610.03014)
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Read-only analysis](https://img.shields.io/badge/analysis-read--only-2F6F75)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-D22128)](LICENSE)
 
-[Quick start](#quick-start) · [How it works](#how-it-works) · [GitHub Action](#github-action) · [Documentation](#documentation)
+[Quick start](#quick-start) · [How it works](#how-it-works) · [GitHub Action](#github-action) · [Paper](#paper) · [Documentation](#documentation)
 
 </div>
 
@@ -132,6 +133,34 @@ jobs:
 
 Start with a baseline so CI can focus on newly introduced candidates. Policy
 filters never remove records from the report, JSONL, graph, or SARIF outputs.
+
+## Paper
+
+AgentSecBench and Security-ADG are described in:
+
+> Hang Cui. **Beyond Predefined Sinks: Security-Aware Dependency Analysis for
+> LLM Agents.** arXiv:2610.03014, 2026.
+> [Paper](https://arxiv.org/abs/2610.03014) ·
+> [PDF](https://arxiv.org/pdf/2610.03014) ·
+> [DOI](https://doi.org/10.48550/arXiv.2610.03014)
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{cui2026beyond,
+  title   = {Beyond Predefined Sinks: Security-Aware Dependency Analysis for LLM Agents},
+  author  = {Cui, Hang},
+  journal = {arXiv preprint arXiv:2610.03014},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2610.03014},
+  url     = {https://arxiv.org/abs/2610.03014}
+}
+```
+
+</details>
+
+GitHub also exposes this citation through [CITATION.cff](CITATION.cff).
 
 ## Research-backed engineering
 

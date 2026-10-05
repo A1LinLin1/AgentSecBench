@@ -10,6 +10,7 @@
 !/CHANGELOG.md
 !/LICENSE
 !/NOTICE
+!/CITATION.cff
 !/pyproject.toml
 !/agentsecbench.example.toml
 !/agentsecbench-suppressions.example.toml
